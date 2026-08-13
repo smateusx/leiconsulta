@@ -655,7 +655,7 @@ function Acervo({ leis, error, notice, onDelete, onSaved }) {
     const checagem = await consulta.json().catch(() => ({}));
     const outros = (checagem.resultados || []).filter((item) => item.id !== editando.id);
     const niveis = outros.some(
-      (item) => item.nivel === "igual" || item.nivel === "parecida" || item.score >= 0.08
+      (item) => item.nivel === "igual" || item.nivel === "parecida"
     );
     if (niveis) {
       setErroEdicao(motivoNaoGuardar({ ...checagem, resultados: outros }));
@@ -1042,7 +1042,7 @@ function Nova({ error, onSaved, onError }) {
       });
       const checagem = await consulta.json().catch(() => ({}));
       const niveis = (checagem.resultados || []).some(
-        (item) => item.nivel === "igual" || item.nivel === "parecida" || item.score >= 0.08
+        (item) => item.nivel === "igual" || item.nivel === "parecida"
       );
       if (
         checagem.parecer === "nao_protocolar"
@@ -1089,7 +1089,9 @@ function Nova({ error, onSaved, onError }) {
     <section className="card">
       <h1 className="page-title">Nova lei</h1>
       <p className="hint">
-        Antes de guardar, o sistema consulta o acervo. Se for idêntica ou parecida, explica o motivo e não grava.
+        Antes de guardar, o sistema consulta o acervo. Só recusa se for a mesma lei
+        (ou quase) ou o mesmo assunto com outra redação — um texto qualquer, como um
+        trabalho de faculdade, não deve ser barrado por 9% de palavras comuns.
       </p>
       <form onSubmit={onSubmit}>
         <label htmlFor="titulo">Título</label>

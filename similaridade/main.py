@@ -11,9 +11,31 @@ from sklearn.metrics.pairwise import cosine_similarity
 STOP = {
     "para", "pela", "pelo", "pela", "com", "uma", "uns", "umas", "que", "nao",
     "não", "dos", "das", "nos", "nas", "aos", "às", "este", "esta", "isso",
-    "como", "mais", "menos", "sobre", "entre", "depois", "antes", "fica",
-    "ficam", "sera", "será", "sendo", "ainda", "onde", "quando", "porque",
+    "isto", "como", "mais", "menos", "sobre", "entre", "depois", "antes", "fica",
+    "ficam", "sera", "será", "serao", "serão", "sendo", "ainda", "onde",
+    "quando", "porque", "porém", "porem", "assim", "alem", "além", "desde",
+    "durante", "contra", "segundo", "qualquer", "nenhum", "nenhuma", "sempre",
+    "nunca", "muito", "muita", "muitos", "pouco", "pouca", "outro", "outra",
+    "outros", "outras", "todo", "toda", "todos", "todas", "cada", "deste",
+    "desta", "destes", "destas", "desse", "dessa", "aquele", "aquela", "aquilo",
+    "deve", "devem", "devera", "deverá", "deverao", "deverão", "pode", "podem",
+    "poderá", "podera", "feito", "forma", "parte", "apenas", "tambem", "também",
+    "atraves", "através", "conforme", "disposto", "presente", "artigo", "inciso",
+    "paragrafo", "parágrafo", "municipio", "município", "desta", "neste",
+    "nesta", "nesse", "nessa", "esses", "essas", "eles", "elas", "seus", "suas",
+    "nosso", "nossa", "vosso", "vossa", "mesmo", "mesma", "mesmos", "mesmas",
+    "após", "apos", "então", "entao", "hoje", "aqui", "ali", "qual", "quais",
+    "cujo", "cuja", "cujos", "cujas", "são", "sao", "está", "esta", "estão",
+    "estao", "foi", "foram", "será", "terão", "terao", "tem", "têm", "havia",
+    "apresentacao", "apresentação", "apresentar", "utilizar", "utilizado",
+    "utilizados", "exemplo", "exemplos", "conteudo", "conteúdo", "conteudos",
+    "projeto", "trabalho", "alunos", "equipe", "secao", "seção",
 }
+
+LIMIAR_LISTAR = 0.12
+LIMIAR_PARECIDA = 0.22
+LIMIAR_IGUAL = 0.72
+MIN_TERMOS = 3
 
 TOKEN = re.compile(r"[a-zà-ü0-9]{4,}")
 
@@ -46,10 +68,10 @@ def health():
     return {"ok": True}
 
 
-def nivel(score: float) -> str:
-    if score >= 0.72:
+def nivel(score: float, n_termos: int) -> str:
+    if score >= LIMIAR_IGUAL:
         return "igual"
-    if score >= 0.08:
+    if score >= LIMIAR_PARECIDA and n_termos >= MIN_TERMOS:
         return "parecida"
     return "relacionada"
 
@@ -108,8 +130,9 @@ def compare(body: CompareIn):
     resultados = []
     for lei, score in zip(body.leis, scores):
         value = float(score)
-        if value < 0.08:
+        if value < LIMIAR_LISTAR:
             continue
+        termos = termos_comuns(body.texto, lei)
         resultados.append(
             {
                 "id": lei.id,
@@ -120,8 +143,8 @@ def compare(body: CompareIn):
                 "ementa": lei.ementa,
                 "texto": lei.texto,
                 "score": round(value, 3),
-                "nivel": nivel(value),
-                "termos": termos_comuns(body.texto, lei),
+                "nivel": nivel(value, len(termos)),
+                "termos": termos,
             }
         )
     resultados.sort(key=lambda item: item["score"], reverse=True)

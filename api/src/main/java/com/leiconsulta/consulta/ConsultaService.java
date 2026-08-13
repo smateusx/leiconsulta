@@ -229,7 +229,7 @@ public class ConsultaService {
       Set<String> uni = new HashSet<>(query);
       uni.addAll(doc);
       double score = uni.isEmpty() ? 0 : (double) inter.size() / uni.size();
-      if (score < 0.08) {
+      if (score < 0.12) {
         continue;
       }
       MatchDto item = toMatch(lei, score, texto);
@@ -266,9 +266,7 @@ public class ConsultaService {
       return false;
     }
     return consulta.getResultados().stream().anyMatch(item ->
-        "igual".equals(item.getNivel())
-            || "parecida".equals(item.getNivel())
-            || item.getScore() >= 0.08);
+        "igual".equals(item.getNivel()) || "parecida".equals(item.getNivel()));
   }
 
   static MatchDto toMatch(Lei lei, double score, String query) {
@@ -284,7 +282,7 @@ public class ConsultaService {
     item.setScore(Math.round(score * 1000.0) / 1000.0);
     if (score >= 0.72) {
       item.setNivel("igual");
-    } else if (score >= 0.08) {
+    } else if (score >= 0.22 && item.getTermos().size() >= 3) {
       item.setNivel("parecida");
     } else {
       item.setNivel("relacionada");
@@ -298,12 +296,30 @@ public class ConsultaService {
     return inter.stream().sorted().limit(8).toList();
   }
 
+  private static final Set<String> STOP = Set.of(
+      "para", "pela", "pelo", "com", "uma", "uns", "umas", "que", "nao", "não",
+      "dos", "das", "nos", "nas", "aos", "este", "esta", "isso", "isto", "como",
+      "mais", "menos", "sobre", "entre", "depois", "antes", "fica", "ficam",
+      "sera", "será", "serao", "serão", "sendo", "ainda", "onde", "quando",
+      "porque", "assim", "alem", "além", "desde", "durante", "contra", "segundo",
+      "qualquer", "nenhum", "nenhuma", "sempre", "nunca", "muito", "muita",
+      "muitos", "pouco", "outro", "outra", "outros", "outras", "todo", "toda",
+      "todos", "todas", "cada", "deste", "desta", "destes", "destas", "aquele",
+      "aquela", "deve", "devem", "devera", "deverá", "deverao", "deverão",
+      "pode", "podem", "feito", "forma", "parte", "apenas", "tambem", "também",
+      "atraves", "através", "conforme", "disposto", "presente", "artigo",
+      "municipio", "município", "neste", "nesta", "mesmo", "mesma", "após",
+      "apos", "qual", "quais", "são", "sao", "estão", "estao", "foi", "foram",
+      "apresentacao", "apresentação", "apresentar", "exemplo", "exemplos",
+      "projeto", "trabalho", "alunos", "equipe");
+
   private static Set<String> tokens(String text) {
     if (text == null) {
       return Set.of();
     }
     return Arrays.stream(text.toLowerCase(Locale.ROOT).split("[^a-zà-ü0-9]+"))
         .filter(t -> t.length() > 3)
+        .filter(t -> !STOP.contains(t))
         .collect(Collectors.toSet());
   }
 }
