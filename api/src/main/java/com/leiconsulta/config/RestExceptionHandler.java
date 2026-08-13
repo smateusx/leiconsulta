@@ -6,6 +6,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.server.ResponseStatusException;
 
 @RestControllerAdvice
 public class RestExceptionHandler {
@@ -16,5 +17,12 @@ public class RestExceptionHandler {
         .map(err -> err.getDefaultMessage())
         .orElse("Dados inválidos.");
     return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("error", msg));
+  }
+
+  @ExceptionHandler(ResponseStatusException.class)
+  public ResponseEntity<Map<String, String>> status(ResponseStatusException ex) {
+    HttpStatus status = HttpStatus.valueOf(ex.getStatusCode().value());
+    String msg = ex.getReason() == null ? "Erro na requisição." : ex.getReason();
+    return ResponseEntity.status(status).body(Map.of("error", msg));
   }
 }

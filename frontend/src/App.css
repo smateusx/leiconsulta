@@ -83,6 +83,32 @@
   font-size: 0.92rem;
 }
 
+.steps {
+  margin: 1.2rem 0 0;
+  padding-left: 1.2rem;
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+.termos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-top: 0.55rem;
+}
+
+.termos span {
+  border: 1px solid var(--line);
+  padding: 0.15rem 0.45rem;
+  font-size: 0.8rem;
+  font-family: "Segoe UI", Tahoma, sans-serif;
+  color: var(--ink);
+}
+
+.print-only {
+  display: none;
+}
+
 .card {
   background: var(--paper);
   border: 1px solid var(--line);
@@ -241,5 +267,35 @@ button.small {
 
   .law {
     flex-direction: column;
+  }
+}
+
+@media print {
+  body {
+    background: #fff;
+  }
+
+  .no-print,
+  .site-header,
+  form {
+    display: none !important;
+  }
+
+  .print-only {
+    display: block;
+  }
+
+  .page {
+    max-width: none;
+    padding: 0;
+  }
+
+  .card {
+    border: none;
+    padding: 0;
+  }
+
+  .match {
+    break-inside: avoid;
   }
 }

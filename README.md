@@ -16,7 +16,7 @@ Um código/identificador aponta para o texto da lei. A consulta compara o rascun
 
 ## Parte prática
 
-Vereador ou deputado cola o rascunho, recebe um parecer (já existe, é parecida, ou o acervo está livre) e só então protocola. O acervo fica digital, com número da lei e texto completo. O exemplo inicial usa **Cachoeira/BA**.
+Vereador ou deputado cola o rascunho ou envia PDF, recebe um parecer (já existe, é parecida, ou o acervo está livre) com os termos em comum, e só então protocola. Dá para imprimir o parecer. O acervo fica digital, com número da lei e texto completo. O exemplo inicial usa **Cachoeira/BA**.
 
 ## Como rodar
 
@@ -61,3 +61,4 @@ Se o Python estiver desligado, o Java ainda consulta (comparação mais simples 
 - `POST /api/leis`
 - `DELETE /api/leis/{id}`
 - `POST /api/consultar` `{ "texto": "...", "municipio": "opcional" }` → `parecer`: `nao_protocolar` | `revisar` | `livre`
+- `POST /api/extrair` (multipart `arquivo`: `.txt` ou `.pdf`) → `{ "texto": "..." }`

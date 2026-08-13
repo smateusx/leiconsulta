@@ -1,5 +1,8 @@
 package com.leiconsulta.consulta;
 
+import java.util.ArrayList;
+import java.util.List;
+
 public class MatchDto {
   private Long id;
   private String titulo;
@@ -10,6 +13,7 @@ public class MatchDto {
   private String texto;
   private double score;
   private String nivel;
+  private List<String> termos = new ArrayList<>();
 
   public Long getId() {
     return id;
@@ -81,5 +85,13 @@ public class MatchDto {
 
   public void setNivel(String nivel) {
     this.nivel = nivel;
+  }
+
+  public List<String> getTermos() {
+    return termos;
+  }
+
+  public void setTermos(List<String> termos) {
+    this.termos = termos == null ? new ArrayList<>() : termos;
   }
 }

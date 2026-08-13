@@ -86,7 +86,7 @@ export default function App() {
 
   return (
     <div className="shell">
-      <header className="site-header">
+      <header className="site-header no-print">
         <a
           className="brand"
           href="/"
@@ -170,9 +170,14 @@ function Home({ go, python, total }) {
       <p className="kicker">Cachoeira / Bahia</p>
       <h1>Consulte antes de criar a lei.</h1>
       <p className="lead">
-        Cole o rascunho e receba um parecer: já existe, é parecida, ou o acervo
-        está livre. Menos papel, menos lei repetida.
+        Cole o rascunho ou envie um PDF. O sistema diz se já existe, se é
+        parecida, ou se o acervo está livre. Menos papel, menos lei repetida.
       </p>
+      <ol className="steps">
+        <li>Cole o texto ou envie .txt / .pdf</li>
+        <li>Leia o parecer e os trechos em comum</li>
+        <li>Protocola só se o acervo estiver livre</li>
+      </ol>
       <div className="home-actions">
         <button type="button" onClick={() => go("/consultar")}>
           Consultar proposta
@@ -183,16 +188,32 @@ function Home({ go, python, total }) {
       </div>
       <p className="status">
         {python
-          ? "Similaridade no Python (TF-IDF)."
-          : "Similaridade no Java (palavras). Ligue o Python para o motor completo."}
+          ? "Similaridade no Python (TF-IDF). PDF digital entra pelo Python."
+          : "Similaridade no Java (palavras). Ligue o Python para PDF e o motor completo."}
       </p>
     </section>
   );
 }
 
+async function lerArquivo(file) {
+  const nome = file.name.toLowerCase();
+  if (nome.endsWith(".txt")) {
+    return file.text();
+  }
+  const body = new FormData();
+  body.append("arquivo", file);
+  const res = await fetch(`${API}/api/extrair`, { method: "POST", body });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(data.error || "Não foi possível ler o arquivo.");
+  }
+  return data.texto || "";
+}
+
 function Consultar({ python, onError, error, go }) {
   const [texto, setTexto] = useState("");
   const [municipio, setMunicipio] = useState("Cachoeira");
+  const [arquivoNome, setArquivoNome] = useState("");
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
   const [aberto, setAberto] = useState(null);
@@ -228,10 +249,31 @@ function Consultar({ python, onError, error, go }) {
     <section className="card">
       <h1 className="page-title">Consultar proposta</h1>
       <p className="hint">
-        Cole o rascunho. O sistema compara com o acervo de Cachoeira
+        Cole o rascunho ou envie .txt / .pdf. O sistema compara com o acervo de Cachoeira
         {python ? " usando Python." : " no Java, se o Python estiver desligado."}
       </p>
-      <form onSubmit={onSubmit}>
+      <form onSubmit={onSubmit} className="no-print">
+        <label htmlFor="arquivo">Arquivo (opcional)</label>
+        <input
+          id="arquivo"
+          type="file"
+          accept=".txt,.pdf,text/plain,application/pdf"
+          onChange={async (e) => {
+            const file = e.target.files?.[0];
+            e.target.value = "";
+            if (!file) return;
+            onError("");
+            try {
+              const extraido = await lerArquivo(file);
+              setTexto(extraido);
+              setArquivoNome(file.name);
+              setResult(null);
+            } catch (err) {
+              onError(err.message);
+            }
+          }}
+        />
+        {arquivoNome && <p className="hint">Lido: {arquivoNome}</p>}
         <label htmlFor="mun">Município</label>
         <input
           id="mun"
@@ -254,7 +296,8 @@ function Consultar({ python, onError, error, go }) {
       </form>
       {error && <p className="msg error">{error}</p>}
       {result && parecer && (
-        <div className={`parecer ${result.parecer || "livre"}`}>
+        <div className={`parecer ${result.parecer || "livre"}`} id="parecer-print">
+          <p className="print-only kicker">LeiConsulta · Cachoeira/BA · parecer de consulta</p>
           <strong>{parecer.titulo}</strong>
           <p>{parecer.texto}</p>
           <p className="hint">
@@ -262,7 +305,16 @@ function Consultar({ python, onError, error, go }) {
             {result.resultados?.length
               ? ` · ${result.resultados.length} lei(s) próxima(s)`
               : " · nada no acervo"}
+            {" · "}
+            {new Date().toLocaleString("pt-BR")}
           </p>
+          <button
+            className="ghost small no-print"
+            type="button"
+            onClick={() => window.print()}
+          >
+            Imprimir parecer
+          </button>
         </div>
       )}
       {result && (
@@ -276,8 +328,15 @@ function Consultar({ python, onError, error, go }) {
                 {NIVEL[item.nivel] || item.nivel}
               </p>
               <p>{item.ementa}</p>
+              {item.termos?.length > 0 && (
+                <p className="termos">
+                  {item.termos.map((termo) => (
+                    <span key={termo}>{termo}</span>
+                  ))}
+                </p>
+              )}
               <button
-                className="ghost small"
+                className="ghost small no-print"
                 type="button"
                 onClick={() => setAberto(aberto === item.id ? null : item.id)}
               >
@@ -291,7 +350,7 @@ function Consultar({ python, onError, error, go }) {
         </div>
       )}
       {result?.parecer === "livre" && (
-        <button type="button" className="ghost" onClick={() => go("/nova")}>
+        <button type="button" className="ghost no-print" onClick={() => go("/nova")}>
           Guardar esta proposta no acervo
         </button>
       )}
@@ -439,6 +498,23 @@ function Nova({ error, onSaved, onError }) {
         <input id="ano" type="number" value={ano} onChange={(e) => setAno(e.target.value)} required />
         <label htmlFor="ementa">Ementa</label>
         <input id="ementa" value={ementa} onChange={(e) => setEmenta(e.target.value)} required />
+        <label htmlFor="arquivo-nova">Arquivo (opcional)</label>
+        <input
+          id="arquivo-nova"
+          type="file"
+          accept=".txt,.pdf,text/plain,application/pdf"
+          onChange={async (e) => {
+            const file = e.target.files?.[0];
+            e.target.value = "";
+            if (!file) return;
+            onError("");
+            try {
+              setTexto(await lerArquivo(file));
+            } catch (err) {
+              onError(err.message);
+            }
+          }}
+        />
         <label htmlFor="texto">Texto</label>
         <textarea id="texto" rows="8" value={texto} onChange={(e) => setTexto(e.target.value)} required />
         <button type="submit" disabled={loading}>

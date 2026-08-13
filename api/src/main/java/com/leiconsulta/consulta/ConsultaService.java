@@ -2,6 +2,8 @@ package com.leiconsulta.consulta;
 
 import com.leiconsulta.lei.Lei;
 import com.leiconsulta.lei.LeiRepository;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
@@ -14,9 +16,14 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.ParameterizedTypeReference;
+import org.springframework.core.io.ByteArrayResource;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.http.client.MultipartBodyBuilder;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
+import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.server.ResponseStatusException;
 
 @Service
 public class ConsultaService {
@@ -54,6 +61,50 @@ public class ConsultaService {
       return python;
     }
     return fallbackJava(texto, acervo);
+  }
+
+  public Map<String, String> extrair(MultipartFile arquivo) {
+    if (arquivo == null || arquivo.isEmpty()) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Envie um arquivo .txt ou .pdf.");
+    }
+    String nome = arquivo.getOriginalFilename() == null
+        ? ""
+        : arquivo.getOriginalFilename().toLowerCase(Locale.ROOT);
+    try {
+      if (nome.endsWith(".txt")) {
+        String texto = new String(arquivo.getBytes(), StandardCharsets.UTF_8).trim();
+        if (texto.length() < 8) {
+          throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, "Arquivo sem texto suficiente.");
+        }
+        return Map.of("texto", texto);
+      }
+      if (!nome.endsWith(".pdf")) {
+        throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Use arquivo .txt ou .pdf.");
+      }
+      MultipartBodyBuilder builder = new MultipartBodyBuilder();
+      builder.part("arquivo", new ByteArrayResource(arquivo.getBytes()) {
+        @Override
+        public String getFilename() {
+          return arquivo.getOriginalFilename();
+        }
+      });
+      Map<?, ?> resposta = http.post()
+          .uri(pythonUrl + "/extrair")
+          .contentType(MediaType.MULTIPART_FORM_DATA)
+          .body(builder.build())
+          .retrieve()
+          .body(Map.class);
+      if (resposta == null || resposta.get("texto") == null) {
+        throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "Python não devolveu texto.");
+      }
+      return Map.of("texto", String.valueOf(resposta.get("texto")));
+    } catch (ResponseStatusException ex) {
+      throw ex;
+    } catch (IOException ex) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Não foi possível ler o arquivo.");
+    } catch (Exception ex) {
+      throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "Ligue o Python para ler PDF.");
+    }
   }
 
   private ConsultaResponse tentarPython(String texto, List<Lei> acervo) {
@@ -106,7 +157,7 @@ public class ConsultaService {
       if (score < 0.08) {
         continue;
       }
-      MatchDto item = toMatch(lei, score);
+      MatchDto item = toMatch(lei, score, texto);
       matches.add(item);
     }
     matches.sort(Comparator.comparingDouble(MatchDto::getScore).reversed());
@@ -129,7 +180,7 @@ public class ConsultaService {
     return parecida ? "revisar" : "livre";
   }
 
-  static MatchDto toMatch(Lei lei, double score) {
+  static MatchDto toMatch(Lei lei, double score, String query) {
     MatchDto item = new MatchDto();
     item.setId(lei.getId());
     item.setTitulo(lei.getTitulo());
@@ -138,6 +189,7 @@ public class ConsultaService {
     item.setAno(lei.getAno());
     item.setEmenta(lei.getEmenta());
     item.setTexto(lei.getTexto());
+    item.setTermos(termosComuns(query, lei));
     item.setScore(Math.round(score * 1000.0) / 1000.0);
     if (score >= 0.72) {
       item.setNivel("igual");
@@ -149,7 +201,16 @@ public class ConsultaService {
     return item;
   }
 
+  private static List<String> termosComuns(String query, Lei lei) {
+    Set<String> inter = new HashSet<>(tokens(query));
+    inter.retainAll(tokens(lei.getTitulo() + " " + lei.getEmenta() + " " + lei.getTexto()));
+    return inter.stream().sorted().limit(8).toList();
+  }
+
   private static Set<String> tokens(String text) {
+    if (text == null) {
+      return Set.of();
+    }
     return Arrays.stream(text.toLowerCase(Locale.ROOT).split("[^a-zà-ü0-9]+"))
         .filter(t -> t.length() > 3)
         .collect(Collectors.toSet());

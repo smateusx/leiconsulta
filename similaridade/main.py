@@ -1,6 +1,10 @@
-from fastapi import FastAPI
+import re
+from io import BytesIO
+
+from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
+from pypdf import PdfReader
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 
@@ -10,6 +14,8 @@ STOP = {
     "como", "mais", "menos", "sobre", "entre", "depois", "antes", "fica",
     "ficam", "sera", "será", "sendo", "ainda", "onde", "quando", "porque",
 }
+
+TOKEN = re.compile(r"[a-zà-ü0-9]{4,}")
 
 app = FastAPI(title="LeiConsulta similaridade")
 app.add_middleware(
@@ -48,6 +54,39 @@ def nivel(score: float) -> str:
     return "relacionada"
 
 
+def tokens(text: str) -> set[str]:
+    return {
+        word
+        for word in TOKEN.findall(text.lower())
+        if word not in STOP
+    }
+
+
+def termos_comuns(query: str, lei: LeiIn) -> list[str]:
+    inter = tokens(query) & tokens(f"{lei.titulo} {lei.ementa} {lei.texto}")
+    return sorted(inter)[:8]
+
+
+@app.post("/extrair")
+async def extrair(arquivo: UploadFile = File(...)):
+    nome = (arquivo.filename or "").lower()
+    data = await arquivo.read()
+    if nome.endswith(".txt"):
+        texto = data.decode("utf-8", errors="ignore")
+    elif nome.endswith(".pdf"):
+        leitor = PdfReader(BytesIO(data))
+        texto = "\n".join((pagina.extract_text() or "") for pagina in leitor.pages)
+    else:
+        raise HTTPException(status_code=400, detail="Use arquivo .txt ou .pdf.")
+    texto = " ".join(texto.split()).strip()
+    if len(texto) < 8:
+        raise HTTPException(
+            status_code=422,
+            detail="Não achei texto no arquivo. PDF escaneado (imagem) não entra sem OCR.",
+        )
+    return {"texto": texto}
+
+
 @app.post("/compare")
 def compare(body: CompareIn):
     if not body.leis:
@@ -82,6 +121,7 @@ def compare(body: CompareIn):
                 "texto": lei.texto,
                 "score": round(value, 3),
                 "nivel": nivel(value),
+                "termos": termos_comuns(body.texto, lei),
             }
         )
     resultados.sort(key=lambda item: item["score"], reverse=True)
