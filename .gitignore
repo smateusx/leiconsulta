@@ -1,0 +1,14 @@
+target/
+.idea/
+*.iml
+api/data/*.db
+api/data/*.db-journal
+node_modules/
+dist/
+.venv/
+venv/
+__pycache__/
+*.pyc
+.env
+.DS_Store
+frontend/dist/

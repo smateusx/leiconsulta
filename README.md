@@ -1,0 +1,62 @@
+# LeiConsulta
+
+Plataforma para guardar leis municipais e consultar se uma proposta nova já existe ou é parecida. Evita lei repetida e papel.
+
+| Parte | Pasta | Porta | Função |
+|---|---|---|---|
+| React | `frontend` | 5173 | Interface |
+| Java / Spring Boot | `api` | 8080 | Cadastro, listagem, consulta |
+| Python | `similaridade` | 8002 | Semelhança entre textos (TF-IDF) |
+
+Sem serviços pagos. SQLite em `api/data/leis.db`.
+
+## Parte teórica
+
+Um código/identificador aponta para o texto da lei. A consulta compara o rascunho com o acervo (similaridade de texto) e devolve leis iguais ou parecidas. A API segue REST. Camadas: interface, regras (Java), análise de texto (Python).
+
+## Parte prática
+
+Vereador ou deputado cola o rascunho, vê o que já existe no município e só então protocola. O acervo fica digital.
+
+## Como rodar
+
+Três terminais.
+
+**1. API Java**
+
+```bash
+cd leiconsulta/api
+.\mvnw.cmd spring-boot:run
+```
+
+No Windows, se `JAVA_HOME` reclamar: `powershell -File run.ps1`
+
+**2. Similaridade Python**
+
+```bash
+cd leiconsulta/similaridade
+C:\Users\teu02\AppData\Local\Programs\Python\Python312\python.exe -m venv .venv
+.\.venv\Scripts\activate
+pip install -r requirements.txt
+uvicorn main:app --port 8002 --reload
+```
+
+**3. Interface**
+
+```bash
+cd leiconsulta/frontend
+npm install
+npm run dev
+```
+
+Abra http://localhost:5173
+
+Se o Python estiver desligado, o Java ainda consulta (comparação mais simples por palavras).
+
+## API
+
+- `GET /api/health`
+- `GET /api/leis`
+- `POST /api/leis`
+- `DELETE /api/leis/{id}`
+- `POST /api/consultar` `{ "texto": "...", "municipio": "opcional" }`
