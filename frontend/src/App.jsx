@@ -923,6 +923,21 @@ function Ajuda({ go }) {
   );
 }
 
+function motivoNaoGuardar(consulta) {
+  const top = (consulta.resultados || [])[0];
+  if (!top) {
+    return consulta.parecer === "nao_protocolar"
+      ? "Não foi guardada: o acervo já tem lei igual ou quase igual."
+      : "Não foi guardada: há lei parecida no acervo.";
+  }
+  const nome = top.numero ? `Lei nº ${top.numero} — ${top.titulo}` : top.titulo;
+  const pct = Math.round(top.score * 100);
+  if (consulta.parecer === "nao_protocolar") {
+    return `Não foi guardada porque já existe lei igual ou quase igual: ${nome} (${pct}% de semelhança). Use essa lei, não cadastre outra.`;
+  }
+  return `Não foi guardada porque o texto é parecido com ${nome} (${pct}% de semelhança). Pode ser o mesmo assunto com outra redação.`;
+}
+
 function Nova({ error, onSaved, onError }) {
   const [titulo, setTitulo] = useState("");
   const [numero, setNumero] = useState("");
@@ -931,6 +946,7 @@ function Nova({ error, onSaved, onError }) {
   const [ementa, setEmenta] = useState("");
   const [texto, setTexto] = useState("");
   const [loading, setLoading] = useState(false);
+  const [bloqueio, setBloqueio] = useState(null);
 
   useEffect(() => {
     const rascunho = sessionStorage.getItem("leiconsulta.novaTexto");
@@ -945,9 +961,33 @@ function Nova({ error, onSaved, onError }) {
     }
   }, []);
 
+  async function gravar() {
+    const res = await fetch(`${API}/api/leis`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        titulo,
+        numero,
+        municipio,
+        ano: Number(ano),
+        ementa,
+        texto,
+      }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      throw new Error(
+        data.error
+        || data.message
+        || `Não foi possível guardar a lei (código ${res.status}).`
+      );
+    }
+  }
+
   async function onSubmit(e) {
     e.preventDefault();
     onError("");
+    setBloqueio(null);
     setLoading(true);
     try {
       const consulta = await fetch(`${API}/api/consultar`, {
@@ -958,39 +998,32 @@ function Nova({ error, onSaved, onError }) {
       if (consulta.ok) {
         const data = await consulta.json();
         if (data.parecer === "nao_protocolar" || data.parecer === "revisar") {
-          const aviso = data.parecer === "nao_protocolar"
-            ? "Já existe lei igual ou quase igual. Guardar mesmo assim?"
-            : "Há leis parecidas no acervo. Guardar mesmo assim?";
-          if (!window.confirm(aviso)) {
-            setLoading(false);
-            return;
-          }
+          setBloqueio({
+            parecer: data.parecer,
+            motivo: motivoNaoGuardar(data),
+            resultados: data.resultados || [],
+          });
+          return;
         }
       }
-      const res = await fetch(`${API}/api/leis`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          titulo,
-          numero,
-          municipio,
-          ano: Number(ano),
-          ementa,
-          texto,
-        }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        onError(
-          data.error
-          || data.message
-          || `Não foi possível guardar a lei (código ${res.status}). Veja se a API Java está no ar na porta 8080.`
-        );
-        return;
-      }
+      await gravar();
       onSaved();
-    } catch {
-      onError("A API Java está fora do ar.");
+    } catch (err) {
+      onError(err.message || "A API Java está fora do ar.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function guardarMesmoAssim() {
+    onError("");
+    setLoading(true);
+    try {
+      await gravar();
+      setBloqueio(null);
+      onSaved();
+    } catch (err) {
+      onError(err.message || "A API Java está fora do ar.");
     } finally {
       setLoading(false);
     }
@@ -1000,7 +1033,7 @@ function Nova({ error, onSaved, onError }) {
     <section className="card">
       <h1 className="page-title">Nova lei</h1>
       <p className="hint">
-        Antes de guardar, o sistema consulta o acervo. Se achar igual ou parecida, pede confirmação.
+        Antes de guardar, o sistema consulta o acervo. Se achar igual ou parecida, explica o motivo e não grava.
       </p>
       <form onSubmit={onSubmit}>
         <label htmlFor="titulo">Título</label>
@@ -1028,6 +1061,7 @@ function Nova({ error, onSaved, onError }) {
             e.target.value = "";
             if (!file) return;
             onError("");
+            setBloqueio(null);
             try {
               setTexto(await lerArquivo(file));
             } catch (err) {
@@ -1038,10 +1072,37 @@ function Nova({ error, onSaved, onError }) {
         <label htmlFor="texto">Texto</label>
         <textarea id="texto" rows="8" value={texto} onChange={(e) => setTexto(e.target.value)} required />
         <button type="submit" disabled={loading}>
-          {loading ? "Checando e guardando…" : "Guardar no acervo"}
+          {loading ? "Checando o acervo…" : "Guardar no acervo"}
         </button>
       </form>
+      {bloqueio && (
+        <div className={`parecer ${bloqueio.parecer === "nao_protocolar" ? "nao_protocolar" : "revisar"}`}>
+          <strong>
+            {bloqueio.parecer === "nao_protocolar"
+              ? "Não guardada — já existe no acervo"
+              : "Não guardada — lei parecida"}
+          </strong>
+          <p>{bloqueio.motivo}</p>
+          <div className="results">
+            {bloqueio.resultados.slice(0, 3).map((item) => (
+              <article key={item.id} className={`match ${item.nivel}`}>
+                <strong>{item.titulo}</strong>
+                <p>
+                  {item.numero ? `Lei nº ${item.numero} · ` : ""}
+                  {item.municipio} · {item.ano} · {Math.round(item.score * 100)}% ·{" "}
+                  {NIVEL[item.nivel] || item.nivel}
+                </p>
+                <p>{item.ementa}</p>
+              </article>
+            ))}
+          </div>
+          <button type="button" className="ghost" disabled={loading} onClick={guardarMesmoAssim}>
+            Guardar mesmo assim
+          </button>
+        </div>
+      )}
       {error && <p className="msg error">{error}</p>}
     </section>
   );
 }
+
