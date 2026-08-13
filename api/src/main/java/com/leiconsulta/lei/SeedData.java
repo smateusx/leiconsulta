@@ -19,6 +19,9 @@ public class SeedData implements CommandLineRunner {
     if (soExemploAntigo) {
       leis.deleteAll();
     }
+    if (leis.count() > 0) {
+      return;
+    }
 
     upsert(
         "1142/2018",

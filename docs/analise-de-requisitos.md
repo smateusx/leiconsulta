@@ -25,7 +25,7 @@
 | RF11 | Gerar código da consulta (LC-AAAA-NNNN) | Feito |
 | RF12 | Guardar histórico de consultas | Feito |
 | RF13 | Imprimir e baixar parecer | Feito |
-| RF14 | Exportar acervo em CSV | Feito |
+| RF14 | Exportar acervo em PDF | Feito |
 | RF15 | Exibir estado do motor (Python ou Java) | Feito |
 | RF16 | Página de ajuda com os três pareceres | Feito |
 | RF17 | **Alterar lei já cadastrada** | Feito |

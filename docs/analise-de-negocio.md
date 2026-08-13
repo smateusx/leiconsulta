@@ -51,7 +51,7 @@ Isso não substitui a consultoria jurídica da Câmara. É um **filtro de duplic
 
 ## 6. Escopo do piloto
 
-**Dentro:** Cachoeira/BA como município de exemplo; cadastro de leis; consulta por similaridade; parecer; histórico; impressão/download; CSV.
+**Dentro:** Cachoeira/BA como município de exemplo; cadastro de leis; consulta por similaridade; parecer; histórico; impressão/download; PDF.
 
 **Fora (agora):** login, papéis de permissão, OCR de PDF escaneado, integração com o Diário Oficial, validade jurídica do parecer, hospedagem pública, app mobile.
 
@@ -75,7 +75,7 @@ Se um dia virar serviço: município ou gabinete paga hospedagem + carga do acer
 - Consulta em menos de alguns segundos no acervo de exemplo.
 - Código gravado no histórico após cada consulta.
 - Assessoria consegue achar a lei de silêncio (1142/2018) a partir de um rascunho sobre barulho após 22h.
-- Exportar o acervo em CSV.
+- Exportar o acervo em PDF.
 
 ## 10. Conclusão
 

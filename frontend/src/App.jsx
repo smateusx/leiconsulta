@@ -144,12 +144,13 @@ export default function App() {
               setNotice(msg);
               await load();
             }}
-            onDelete={async (id) => {
-              const ok = window.confirm("Apagar esta lei do acervo?");
+            onDelete={async (lei) => {
+              const ok = window.confirm(`Apagar do acervo?\n\n${lei.titulo}${lei.numero ? ` (Lei nº ${lei.numero})` : ""}`);
               if (!ok) return;
-              const res = await fetch(`${API}/api/leis/${id}`, { method: "DELETE" });
+              const res = await fetch(`${API}/api/leis/${lei.id}`, { method: "DELETE" });
+              const data = await res.json().catch(() => ({}));
               if (!res.ok) {
-                setError("Não foi possível apagar.");
+                setError(data.error || `Não foi possível apagar (código ${res.status}).`);
                 return;
               }
               setNotice("Lei apagada.");
@@ -324,22 +325,39 @@ function baixarParecer(result, parecer, texto) {
   baixarArquivo(`${result.codigo || "parecer"}.txt`, `${linhas.join("\n")}\n`);
 }
 
-function baixarCsv(leis) {
-  const header = ["numero", "titulo", "municipio", "ano", "ementa", "texto"];
-  const linhas = leis.map((lei) =>
-    header
-      .map((campo) => `"${String(lei[campo] ?? "").replace(/"/g, '""')}"`)
-      .join(";")
-  );
-  const blob = new Blob([[header.join(";"), ...linhas].join("\n")], {
-    type: "text/csv;charset=utf-8",
-  });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = "acervo-cachoeira.csv";
-  a.click();
-  URL.revokeObjectURL(url);
+function exportarPdf(leis) {
+  const artigos = leis
+    .map((lei) => {
+      const num = lei.numero ? `Lei nº ${lei.numero} · ` : "";
+      const titulo = String(lei.titulo || "").replace(/</g, "&lt;");
+      const ementa = String(lei.ementa || "").replace(/</g, "&lt;");
+      const texto = String(lei.texto || "").replace(/</g, "&lt;");
+      return `<article><h2>${titulo}</h2><p class="meta">${num}${lei.municipio} · ${lei.ano}</p><p>${ementa}</p><p>${texto}</p></article>`;
+    })
+    .join("");
+  const iframe = document.createElement("iframe");
+  iframe.setAttribute("aria-hidden", "true");
+  iframe.style.cssText = "position:fixed;right:0;bottom:0;width:0;height:0;border:0";
+  document.body.appendChild(iframe);
+  const doc = iframe.contentDocument;
+  doc.open();
+  doc.write(`<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>Acervo LeiConsulta</title>
+<style>
+  body { font-family: Georgia, serif; color: #1d2430; padding: 24px; }
+  h1 { font-size: 22px; }
+  article { page-break-inside: avoid; margin: 0 0 28px; padding: 0 0 16px; border-bottom: 1px solid #ccc; }
+  h2 { font-size: 16px; margin: 0 0 6px; }
+  .meta { color: #5c6470; font-size: 13px; }
+  p { line-height: 1.45; }
+</style></head><body>
+<h1>LeiConsulta — acervo</h1>
+<p>Cachoeira/BA · ${leis.length} lei(s) · ${new Date().toLocaleString("pt-BR")}</p>
+${artigos}
+</body></html>`);
+  doc.close();
+  iframe.contentWindow.focus();
+  iframe.contentWindow.print();
+  setTimeout(() => iframe.remove(), 2000);
 }
 
 const EXEMPLO_RASCUNHO =
@@ -668,9 +686,9 @@ function Acervo({ leis, error, notice, onDelete, onSaved }) {
           type="button"
           className="ghost"
           disabled={!filtradas.length}
-          onClick={() => baixarCsv(filtradas)}
+          onClick={() => exportarPdf(filtradas)}
         >
-          Exportar CSV
+          Exportar PDF
         </button>
       </div>
       {error && <p className="msg error">{error}</p>}
@@ -763,7 +781,7 @@ function Acervo({ leis, error, notice, onDelete, onSaved }) {
               >
                 Editar
               </button>
-              <button className="danger" type="button" onClick={() => onDelete(lei.id)}>
+              <button className="danger" type="button" onClick={() => onDelete(lei)}>
                 Apagar
               </button>
             </div>
