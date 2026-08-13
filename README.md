@@ -29,7 +29,7 @@ cd leiconsulta/api
 .\mvnw.cmd spring-boot:run
 ```
 
-No Windows, se `JAVA_HOME` reclamar: `powershell -File run.ps1`
+O wrapper usa o JDK em `C:\Program Files\Java\jdk-21`. Se ainda falhar: `powershell -File run.ps1`
 
 **2. Similaridade Python**
 
