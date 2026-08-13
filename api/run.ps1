@@ -11,4 +11,4 @@ if (-not (Test-Path "$env:JAVA_HOME\bin\java.exe")) {
 }
 Write-Host "JAVA_HOME=$env:JAVA_HOME"
 Set-Location $PSScriptRoot
-.\mvnw.cmd spring-boot:run
+.\mvnw.cmd -DskipTests spring-boot:run

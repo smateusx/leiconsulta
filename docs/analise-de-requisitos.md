@@ -34,6 +34,9 @@
 | RF20 | Abrir comprovante da consulta pelo código | Feito |
 | RF21 | Mostrar quantidade de leis por ano na tela inicial | Feito |
 | RF22 | Separar lei parecida de lei só com palavras em comum | Feito |
+| RF23 | Sugerir municípios já cadastrados ao preencher a ficha | Feito |
+| RF24 | Baixar cópia do acervo em JSON | Feito |
+| RF25 | Mostrar no topo se a API e o Python estão ligados | Feito |
 
 ## 3. Requisitos não funcionais
 
@@ -46,6 +49,7 @@
 | RNF05 | Consulta funciona se o Python cair | Fallback Jaccard no Java |
 | RNF06 | PDF escaneado fora do recorte | Sem OCR nesta versão |
 | RNF07 | Dados no disco local | `api/data/leis.db` |
+| RNF08 | Regras de parecer testáveis | `ConsultaServiceTest` (JUnit) |
 
 ## 4. Regras de negócio (operacionais)
 

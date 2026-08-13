@@ -88,6 +88,10 @@ export default function App() {
     });
   }, [page]);
 
+  const municipiosAcervo = [...new Set(leis.map((lei) => lei.municipio).filter(Boolean))].sort((a, b) =>
+    a.localeCompare(b, "pt-BR")
+  );
+
   return (
     <div className="shell">
       <header className="site-header no-print">
@@ -124,9 +128,21 @@ export default function App() {
             </a>
           ))}
         </nav>
+        <span className="motor" title="Estado da API e do motor de similaridade">
+          {apiUp === false
+            ? "API desligada"
+            : python
+              ? "Python ligado"
+              : "Só Java"}
+        </span>
       </header>
 
       <main className="page">
+        <datalist id="municipios-acervo">
+          {municipiosAcervo.map((item) => (
+            <option key={item} value={item} />
+          ))}
+        </datalist>
         {apiUp === false && (
           <p className="msg error">{error}</p>
         )}
@@ -557,11 +573,12 @@ function Consultar({ python, onError, error, go }) {
         <label htmlFor="mun">Município</label>
         <input
           id="mun"
+          list="municipios-acervo"
           value={municipio}
           onChange={(e) => setMunicipio(e.target.value)}
           placeholder="ex.: Cachoeira"
         />
-        <label htmlFor="rascunho">Texto da proposta</label>
+        <label htmlFor="rascunho">Texto da proposta (mínimo 8 caracteres)</label>
         <textarea
           id="rascunho"
           rows="8"
@@ -569,7 +586,9 @@ function Consultar({ python, onError, error, go }) {
           onChange={(e) => setTexto(e.target.value)}
           placeholder="Proíbe barulho depois das 22 horas no perímetro urbano..."
           required
+          minLength={8}
         />
+        <p className="hint">{texto.trim().length} caracteres</p>
         <div className="form-actions">
           <button type="submit" disabled={loading || texto.trim().length < 8}>
             {loading ? "Comparando…" : "Ver se já existe"}
@@ -659,7 +678,7 @@ function Consultar({ python, onError, error, go }) {
               />
             ))}
           {(result.resultados || []).some((item) => item.nivel === "relacionada") && (
-            <>
+            <div className="no-print">
               <h2 className="sub">Só palavras em comum — não impede protocolar</h2>
               <p className="hint">
                 Aparece aqui lei com pouca semelhança. Não é o mesmo assunto.
@@ -675,7 +694,7 @@ function Consultar({ python, onError, error, go }) {
                     setAberto={setAberto}
                   />
                 ))}
-            </>
+            </div>
           )}
         </div>
       )}
@@ -804,6 +823,20 @@ function Acervo({ leis, error, notice, onDelete, onSaved }) {
         >
           Exportar PDF
         </button>
+        <button
+          type="button"
+          className="ghost"
+          disabled={!filtradas.length}
+          onClick={() =>
+            baixarArquivo(
+              `leiconsulta-acervo-${new Date().toISOString().slice(0, 10)}.json`,
+              JSON.stringify(filtradas, null, 2),
+              "application/json"
+            )
+          }
+        >
+          Cópia JSON
+        </button>
       </div>
       {error && <p className="msg error">{error}</p>}
       {notice && <p className="msg ok">{notice}</p>}
@@ -915,6 +948,7 @@ function Historico({ go }) {
   const [filtro, setFiltro] = useState("");
   const [buscaCodigo, setBuscaCodigo] = useState("");
   const [destaque, setDestaque] = useState("");
+  const [carregou, setCarregou] = useState(false);
 
   useEffect(() => {
     const pendente = sessionStorage.getItem("leiconsulta.abrirCodigo");
@@ -928,11 +962,18 @@ function Historico({ go }) {
         if (!res.ok) throw new Error("api");
         return res.json();
       })
-      .then(setItens)
-      .catch(() => setErro("Não foi possível carregar o histórico."));
+      .then((data) => {
+        setItens(data);
+        setCarregou(true);
+      })
+      .catch(() => {
+        setErro("Não foi possível carregar o histórico.");
+        setCarregou(true);
+      });
   }, []);
 
   useEffect(() => {
+    if (!carregou) return;
     const codigo = buscaCodigo.trim().toUpperCase();
     if (!/^LC-\d{4}-\d{4}$/.test(codigo)) return;
     if (itens.some((item) => String(item.codigo || "").toUpperCase() === codigo)) return;
@@ -954,7 +995,7 @@ function Historico({ go }) {
     return () => {
       cancelado = true;
     };
-  }, [buscaCodigo, itens]);
+  }, [buscaCodigo, itens, carregou]);
 
   const termoCodigo = buscaCodigo.trim().toLowerCase();
   const filtradas = itens.filter((item) => {
@@ -1230,7 +1271,13 @@ function Nova({ error, onSaved, onError }) {
           placeholder="ex.: 1142/2018"
         />
         <label htmlFor="municipio">Município</label>
-        <input id="municipio" value={municipio} onChange={(e) => setMunicipio(e.target.value)} required />
+        <input
+          id="municipio"
+          list="municipios-acervo"
+          value={municipio}
+          onChange={(e) => setMunicipio(e.target.value)}
+          required
+        />
         <label htmlFor="ano">Ano</label>
         <input id="ano" type="number" value={ano} onChange={(e) => setAno(e.target.value)} required />
         <label htmlFor="ementa">Ementa</label>

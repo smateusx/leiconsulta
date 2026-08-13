@@ -62,6 +62,12 @@ powershell -File .\iniciar.ps1
 
 Se o Python estiver desligado, o Java ainda consulta (comparação mais simples por palavras). PDF e .txt (até 5 MB) são lidos pelo Java.
 
+Testes das regras de parecer (na pasta `api`):
+
+```bash
+.\mvnw.cmd test
+```
+
 ## API
 
 - `GET /api/health`
