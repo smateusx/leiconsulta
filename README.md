@@ -16,7 +16,7 @@ Um código/identificador aponta para o texto da lei. A consulta compara o rascun
 
 ## Parte prática
 
-Vereador ou deputado cola o rascunho, vê o que já existe no município e só então protocola. O acervo fica digital.
+Vereador ou deputado cola o rascunho, vê o que já existe no município e só então protocola. O acervo fica digital. O exemplo inicial usa **Cachoeira/BA**.
 
 ## Como rodar
 

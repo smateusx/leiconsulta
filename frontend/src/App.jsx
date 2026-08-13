@@ -210,7 +210,7 @@ function Consultar({ python, onError, error }) {
           id="mun"
           value={municipio}
           onChange={(e) => setMunicipio(e.target.value)}
-          placeholder="ex.: Itaí"
+          placeholder="ex.: Cachoeira"
         />
         <label htmlFor="rascunho">Texto da proposta</label>
         <textarea
@@ -279,7 +279,7 @@ function Acervo({ leis, error, notice, onDelete }) {
 
 function Nova({ error, onSaved, onError }) {
   const [titulo, setTitulo] = useState("");
-  const [municipio, setMunicipio] = useState("Itaí");
+  const [municipio, setMunicipio] = useState("Cachoeira");
   const [ano, setAno] = useState(new Date().getFullYear());
   const [ementa, setEmenta] = useState("");
   const [texto, setTexto] = useState("");
