@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import "./App.css";
+import Logo from "./Logo.jsx";
 
 const API = import.meta.env.VITE_API_URL || "";
 
@@ -9,6 +10,7 @@ const ROUTES = {
   "/acervo": "Acervo",
   "/historico": "Histórico",
   "/nova": "Nova lei",
+  "/ajuda": "Ajuda",
 };
 
 const PARECER = {
@@ -96,6 +98,7 @@ export default function App() {
             go("/");
           }}
         >
+          <Logo />
           LeiConsulta
         </a>
         <button
@@ -131,6 +134,7 @@ export default function App() {
           <Consultar python={python} onError={setError} error={error} go={go} />
         )}
         {page === "/historico" && <Historico go={go} />}
+        {page === "/ajuda" && <Ajuda go={go} />}
         {page === "/acervo" && (
           <Acervo
             leis={leis}
@@ -162,6 +166,12 @@ export default function App() {
           />
         )}
       </main>
+      <footer className="site-footer no-print">
+        <p>LeiConsulta · Cachoeira/BA · acervo municipal local</p>
+        <button type="button" className="linkish" onClick={() => go("/ajuda")}>
+          Como usar
+        </button>
+      </footer>
     </div>
   );
 }
@@ -275,6 +285,39 @@ function copiar(texto) {
     return navigator.clipboard.writeText(texto);
   }
   return Promise.reject();
+}
+
+function baixarArquivo(nome, conteudo, tipo = "text/plain;charset=utf-8") {
+  const blob = new Blob([conteudo], { type: tipo });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = nome;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function baixarParecer(result, parecer, texto) {
+  const linhas = [
+    "LeiConsulta — parecer de consulta",
+    `Código: ${result.codigo || "sem código"}`,
+    `Município: Cachoeira/BA`,
+    `Data: ${new Date().toLocaleString("pt-BR")}`,
+    `Parecer: ${parecer.titulo}`,
+    parecer.texto,
+    `Fonte: ${result.fonte === "python" ? "Python" : "Java"}`,
+    "",
+    "Rascunho:",
+    texto,
+    "",
+    "Leis próximas:",
+  ];
+  for (const item of result.resultados || []) {
+    linhas.push(
+      `- ${item.numero ? `Lei nº ${item.numero} · ` : ""}${item.titulo} (${Math.round(item.score * 100)}% · ${item.nivel})`
+    );
+  }
+  baixarArquivo(`${result.codigo || "parecer"}.txt`, `${linhas.join("\n")}\n`);
 }
 
 function baixarCsv(leis) {
@@ -446,6 +489,13 @@ function Consultar({ python, onError, error, go }) {
             onClick={() => window.print()}
           >
             Imprimir parecer
+          </button>
+          <button
+            className="ghost small no-print"
+            type="button"
+            onClick={() => baixarParecer(result, parecer, texto)}
+          >
+            Baixar parecer
           </button>
           {result.codigo && (
             <button
@@ -624,6 +674,7 @@ function Historico({ go }) {
   const [erro, setErro] = useState("");
   const [aberto, setAberto] = useState(null);
   const [copiado, setCopiado] = useState("");
+  const [filtro, setFiltro] = useState("");
 
   useEffect(() => {
     fetch(`${API}/api/consultas`)
@@ -635,16 +686,31 @@ function Historico({ go }) {
       .catch(() => setErro("Não foi possível carregar o histórico."));
   }, []);
 
+  const filtradas = filtro
+    ? itens.filter((item) => item.parecer === filtro)
+    : itens;
+
   return (
     <section className="card">
       <h1 className="page-title">Histórico</h1>
       <p className="hint">
         Cada consulta ganha um código. Serve para mostrar que o acervo foi checado antes de protocolar.
       </p>
+      <label htmlFor="filtro-parecer">Parecer</label>
+      <select id="filtro-parecer" value={filtro} onChange={(e) => setFiltro(e.target.value)}>
+        <option value="">Todos</option>
+        <option value="nao_protocolar">Já existiam</option>
+        <option value="revisar">Para revisar</option>
+        <option value="livre">Livres</option>
+      </select>
       {erro && <p className="msg error">{erro}</p>}
-      {!itens.length && !erro && <p className="hint">Ainda não há consultas gravadas.</p>}
+      {!filtradas.length && !erro && (
+        <p className="hint">
+          {itens.length ? "Nenhuma consulta com esse parecer." : "Ainda não há consultas gravadas."}
+        </p>
+      )}
       <div className="list">
-        {itens.map((item) => (
+        {filtradas.map((item) => (
           <article key={item.id} className={`match ${item.parecer === "nao_protocolar" ? "igual" : item.parecer === "revisar" ? "parecida" : ""}`}>
             <strong>{item.codigo}</strong>
             <p>
@@ -687,11 +753,67 @@ function Historico({ go }) {
               >
                 Consultar de novo
               </button>
+              <button
+                className="ghost small"
+                type="button"
+                onClick={() => {
+                  const parecer = PARECER[item.parecer] || PARECER.livre;
+                  baixarParecer(
+                    {
+                      codigo: item.codigo,
+                      fonte: item.fonte,
+                      parecer: item.parecer,
+                      resultados: item.resumo
+                        ? [{ titulo: item.resumo, score: 0, nivel: item.parecer, numero: "" }]
+                        : [],
+                    },
+                    parecer,
+                    item.texto
+                  );
+                }}
+              >
+                Baixar
+              </button>
             </div>
             {aberto === item.id && <p className="full-text">{item.texto}</p>}
           </article>
         ))}
       </div>
+    </section>
+  );
+}
+
+function Ajuda({ go }) {
+  return (
+    <section className="card">
+      <h1 className="page-title">Como usar</h1>
+      <p className="hint">
+        O LeiConsulta guarda leis de Cachoeira/BA e compara um rascunho novo com o acervo.
+      </p>
+      <h2 className="sub">Os três pareceres</h2>
+      <ul className="ajuda-list">
+        <li>
+          <strong>Já existe.</strong> Não protocolar outra lei com o mesmo conteúdo.
+        </li>
+        <li>
+          <strong>Há leis parecidas.</strong> Leia o texto do acervo. Pode ser o mesmo assunto com outra redação.
+        </li>
+        <li>
+          <strong>Nada parecido.</strong> Pode seguir. Guarde a lei no acervo depois.
+        </li>
+      </ul>
+      <h2 className="sub">Código da consulta</h2>
+      <p className="hint">
+        Cada consulta ganha um código (ex.: LC-2026-0001). Copie, imprima ou baixe o parecer
+        para mostrar que o acervo foi checado.
+      </p>
+      <h2 className="sub">Arquivo</h2>
+      <p className="hint">
+        Aceita .txt e PDF com texto selecionável. PDF só de imagem (escaneado) não entra sem OCR.
+      </p>
+      <button type="button" onClick={() => go("/consultar")}>
+        Ir para consultar
+      </button>
     </section>
   );
 }
