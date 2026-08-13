@@ -1,9 +1,11 @@
 package com.leiconsulta.consulta;
 
 import jakarta.validation.Valid;
+import java.util.List;
 import java.util.Map;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -28,6 +30,16 @@ public class ConsultaController {
   @PostMapping("/consultar")
   public ConsultaResponse consultar(@Valid @RequestBody ConsultaRequest body) {
     return consultas.consultar(body.getTexto().trim(), body.getMunicipio());
+  }
+
+  @GetMapping("/consultas")
+  public List<ConsultaRegistro> historico() {
+    return consultas.historico();
+  }
+
+  @GetMapping("/consultas/{codigo}")
+  public ConsultaRegistro consulta(@PathVariable String codigo) {
+    return consultas.obter(codigo);
   }
 
   @PostMapping(value = "/extrair", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)

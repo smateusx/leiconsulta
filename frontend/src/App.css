@@ -109,6 +109,37 @@
   display: none;
 }
 
+.codigo {
+  font-family: "Segoe UI", Tahoma, sans-serif;
+  font-weight: 700;
+  margin: 0 0 0.4rem;
+}
+
+.filtros {
+  display: grid;
+  grid-template-columns: 1fr 8rem;
+  gap: 0.8rem;
+  align-items: end;
+}
+
+.lado {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.8rem;
+  margin-top: 0.8rem;
+}
+
+.lado > div {
+  border: 1px solid var(--line);
+  padding: 0.7rem;
+}
+
+mark {
+  background: #f3e0a8;
+  color: inherit;
+  padding: 0 0.1em;
+}
+
 .card {
   background: var(--paper);
   border: 1px solid var(--line);
@@ -123,7 +154,8 @@ label {
 }
 
 input,
-textarea {
+textarea,
+select {
   width: 100%;
   border: 1px solid var(--line);
   background: #fff;
@@ -267,6 +299,11 @@ button.small {
 
   .law {
     flex-direction: column;
+  }
+
+  .filtros,
+  .lado {
+    grid-template-columns: 1fr;
   }
 }
 

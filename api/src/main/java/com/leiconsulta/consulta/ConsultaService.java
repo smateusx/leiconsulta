@@ -4,6 +4,7 @@ import com.leiconsulta.lei.Lei;
 import com.leiconsulta.lei.LeiRepository;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.time.Year;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
@@ -28,13 +29,16 @@ import org.springframework.web.server.ResponseStatusException;
 @Service
 public class ConsultaService {
   private final LeiRepository leis;
+  private final ConsultaRegistroRepository registros;
   private final RestClient http;
   private final String pythonUrl;
 
   public ConsultaService(
       LeiRepository leis,
+      ConsultaRegistroRepository registros,
       @Value("${python.url}") String pythonUrl) {
     this.leis = leis;
+    this.registros = registros;
     this.pythonUrl = pythonUrl;
     this.http = RestClient.create();
   }
@@ -57,10 +61,43 @@ public class ConsultaService {
         : leis.findByMunicipioIgnoreCaseOrderByAnoDesc(municipio.trim());
 
     ConsultaResponse python = tentarPython(texto, acervo);
-    if (python != null) {
-      return python;
+    ConsultaResponse resposta = python != null ? python : fallbackJava(texto, acervo);
+    return gravar(resposta, texto, municipio);
+  }
+
+  public List<ConsultaRegistro> historico() {
+    return registros.findAllByOrderByCriadoEmDesc();
+  }
+
+  public ConsultaRegistro obter(String codigo) {
+    return registros.findByCodigoIgnoreCase(codigo.trim())
+        .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Consulta não encontrada."));
+  }
+
+  private ConsultaResponse gravar(ConsultaResponse resposta, String texto, String municipio) {
+    ConsultaRegistro registro = new ConsultaRegistro();
+    registro.setMunicipio(municipio == null || municipio.isBlank() ? "todos" : municipio.trim());
+    registro.setTexto(texto);
+    registro.setParecer(resposta.getParecer());
+    registro.setFonte(resposta.getFonte());
+    registro.setResumo(resumo(resposta));
+    registro = registros.save(registro);
+    String codigo = String.format(Locale.ROOT, "LC-%d-%04d", Year.now().getValue(), registro.getId());
+    registro.setCodigo(codigo);
+    registros.save(registro);
+    resposta.setCodigo(codigo);
+    return resposta;
+  }
+
+  private static String resumo(ConsultaResponse resposta) {
+    if (resposta.getResultados() == null || resposta.getResultados().isEmpty()) {
+      return "Nada parecido no acervo";
     }
-    return fallbackJava(texto, acervo);
+    MatchDto top = resposta.getResultados().get(0);
+    String lei = top.getNumero() == null || top.getNumero().isBlank()
+        ? top.getTitulo()
+        : "Lei nº " + top.getNumero();
+    return lei + " · " + Math.round(top.getScore() * 100) + "% · " + top.getNivel();
   }
 
   public Map<String, String> extrair(MultipartFile arquivo) {

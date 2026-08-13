@@ -7,6 +7,7 @@ const ROUTES = {
   "/": "Início",
   "/consultar": "Consultar",
   "/acervo": "Acervo",
+  "/historico": "Histórico",
   "/nova": "Nova lei",
 };
 
@@ -129,6 +130,7 @@ export default function App() {
         {page === "/consultar" && (
           <Consultar python={python} onError={setError} error={error} go={go} />
         )}
+        {page === "/historico" && <Historico />}
         {page === "/acervo" && (
           <Acervo
             leis={leis}
@@ -176,7 +178,7 @@ function Home({ go, python, total }) {
       <ol className="steps">
         <li>Cole o texto ou envie .txt / .pdf</li>
         <li>Leia o parecer e os trechos em comum</li>
-        <li>Protocola só se o acervo estiver livre</li>
+        <li>Protocola só se o acervo estiver livre. Cada consulta ganha um código (LC-2026-0001).</li>
       </ol>
       <div className="home-actions">
         <button type="button" onClick={() => go("/consultar")}>
@@ -184,6 +186,9 @@ function Home({ go, python, total }) {
         </button>
         <button type="button" className="ghost" onClick={() => go("/acervo")}>
           Ver acervo ({total})
+        </button>
+        <button type="button" className="ghost" onClick={() => go("/historico")}>
+          Histórico
         </button>
       </div>
       <p className="status">
@@ -193,6 +198,41 @@ function Home({ go, python, total }) {
       </p>
     </section>
   );
+}
+
+function Destaque({ texto, termos }) {
+  if (!texto) return null;
+  const lista = (termos || []).filter(Boolean);
+  if (!lista.length) {
+    return <p className="full-text">{texto}</p>;
+  }
+  const escaped = lista.map((item) => item.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+  const re = new RegExp(`(${escaped.join("|")})`, "gi");
+  const parts = texto.split(re);
+  return (
+    <p className="full-text">
+      {parts.map((part, index) =>
+        lista.some((item) => item.toLowerCase() === part.toLowerCase()) ? (
+          <mark key={index}>{part}</mark>
+        ) : (
+          part
+        )
+      )}
+    </p>
+  );
+}
+
+function rotuloParecer(valor) {
+  return PARECER[valor]?.titulo || valor;
+}
+
+function formatarData(iso) {
+  if (!iso) return "";
+  try {
+    return new Date(iso).toLocaleString("pt-BR");
+  } catch {
+    return iso;
+  }
 }
 
 async function lerArquivo(file) {
@@ -298,6 +338,7 @@ function Consultar({ python, onError, error, go }) {
       {result && parecer && (
         <div className={`parecer ${result.parecer || "livre"}`} id="parecer-print">
           <p className="print-only kicker">LeiConsulta · Cachoeira/BA · parecer de consulta</p>
+          {result.codigo && <p className="codigo">Consulta {result.codigo}</p>}
           <strong>{parecer.titulo}</strong>
           <p>{parecer.texto}</p>
           <p className="hint">
@@ -314,6 +355,13 @@ function Consultar({ python, onError, error, go }) {
             onClick={() => window.print()}
           >
             Imprimir parecer
+          </button>
+          <button
+            className="ghost small no-print"
+            type="button"
+            onClick={() => go("/historico")}
+          >
+            Ver histórico
           </button>
         </div>
       )}
@@ -342,8 +390,17 @@ function Consultar({ python, onError, error, go }) {
               >
                 {aberto === item.id ? "Ocultar texto" : "Ler texto"}
               </button>
-              {aberto === item.id && item.texto && (
-                <p className="full-text">{item.texto}</p>
+              {aberto === item.id && (
+                <div className="lado">
+                  <div>
+                    <p className="kicker">Sua proposta</p>
+                    <p className="full-text">{texto}</p>
+                  </div>
+                  <div>
+                    <p className="kicker">Lei do acervo</p>
+                    <Destaque texto={item.texto} termos={item.termos} />
+                  </div>
+                </div>
               )}
             </article>
           ))}
@@ -360,28 +417,45 @@ function Consultar({ python, onError, error, go }) {
 
 function Acervo({ leis, error, notice, onDelete }) {
   const [busca, setBusca] = useState("");
+  const [ano, setAno] = useState("");
   const [aberto, setAberto] = useState(null);
+  const anos = [...new Set(leis.map((lei) => lei.ano))].sort((a, b) => b - a);
   const termo = busca.trim().toLowerCase();
-  const filtradas = termo
-    ? leis.filter((lei) =>
-        [lei.titulo, lei.numero, lei.municipio, lei.ementa, lei.texto, String(lei.ano)]
-          .filter(Boolean)
-          .join(" ")
-          .toLowerCase()
-          .includes(termo)
-      )
-    : leis;
+  const filtradas = leis.filter((lei) => {
+    if (ano && String(lei.ano) !== ano) return false;
+    if (!termo) return true;
+    return [lei.titulo, lei.numero, lei.municipio, lei.ementa, lei.texto, String(lei.ano)]
+      .filter(Boolean)
+      .join(" ")
+      .toLowerCase()
+      .includes(termo);
+  });
 
   return (
     <section className="card">
       <h1 className="page-title">Acervo</h1>
-      <label htmlFor="busca">Buscar</label>
-      <input
-        id="busca"
-        value={busca}
-        onChange={(e) => setBusca(e.target.value)}
-        placeholder="título, número, ementa, Paraguaçu..."
-      />
+      <div className="filtros">
+        <div>
+          <label htmlFor="busca">Buscar</label>
+          <input
+            id="busca"
+            value={busca}
+            onChange={(e) => setBusca(e.target.value)}
+            placeholder="título, número, ementa, Paraguaçu..."
+          />
+        </div>
+        <div>
+          <label htmlFor="ano-filtro">Ano</label>
+          <select id="ano-filtro" value={ano} onChange={(e) => setAno(e.target.value)}>
+            <option value="">Todos</option>
+            {anos.map((item) => (
+              <option key={item} value={item}>
+                {item}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
       {error && <p className="msg error">{error}</p>}
       {notice && <p className="msg ok">{notice}</p>}
       {!filtradas.length && (
@@ -413,6 +487,52 @@ function Acervo({ leis, error, notice, onDelete }) {
                 Apagar
               </button>
             </div>
+          </article>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function Historico() {
+  const [itens, setItens] = useState([]);
+  const [erro, setErro] = useState("");
+  const [aberto, setAberto] = useState(null);
+
+  useEffect(() => {
+    fetch(`${API}/api/consultas`)
+      .then((res) => {
+        if (!res.ok) throw new Error("api");
+        return res.json();
+      })
+      .then(setItens)
+      .catch(() => setErro("Não foi possível carregar o histórico."));
+  }, []);
+
+  return (
+    <section className="card">
+      <h1 className="page-title">Histórico</h1>
+      <p className="hint">
+        Cada consulta ganha um código. Serve para mostrar que o acervo foi checado antes de protocolar.
+      </p>
+      {erro && <p className="msg error">{erro}</p>}
+      {!itens.length && !erro && <p className="hint">Ainda não há consultas gravadas.</p>}
+      <div className="list">
+        {itens.map((item) => (
+          <article key={item.id} className={`match ${item.parecer === "nao_protocolar" ? "igual" : item.parecer === "revisar" ? "parecida" : ""}`}>
+            <strong>{item.codigo}</strong>
+            <p>
+              {item.municipio} · {rotuloParecer(item.parecer)} · {formatarData(item.criadoEm)}
+            </p>
+            <p>{item.resumo}</p>
+            <button
+              className="ghost small"
+              type="button"
+              onClick={() => setAberto(aberto === item.id ? null : item.id)}
+            >
+              {aberto === item.id ? "Ocultar rascunho" : "Ver rascunho"}
+            </button>
+            {aberto === item.id && <p className="full-text">{item.texto}</p>}
           </article>
         ))}
       </div>

@@ -6,6 +6,7 @@ import java.util.List;
 public class ConsultaResponse {
   private String fonte = "java";
   private String parecer = "livre";
+  private String codigo;
   private List<MatchDto> resultados = new ArrayList<>();
 
   public String getFonte() {
@@ -22,6 +23,14 @@ public class ConsultaResponse {
 
   public void setParecer(String parecer) {
     this.parecer = parecer;
+  }
+
+  public String getCodigo() {
+    return codigo;
+  }
+
+  public void setCodigo(String codigo) {
+    this.codigo = codigo;
   }
 
   public List<MatchDto> getResultados() {
