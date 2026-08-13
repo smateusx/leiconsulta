@@ -43,14 +43,6 @@
   color: var(--ink);
 }
 
-.motor {
-  margin-left: auto;
-  font-size: 0.75rem;
-  color: var(--muted);
-  font-family: "Segoe UI", Tahoma, sans-serif;
-  white-space: nowrap;
-}
-
 .menu-toggle {
   display: none;
 }
@@ -406,11 +398,6 @@ button.small {
   .menu-toggle {
     display: inline-flex;
     margin: 0 0 0 auto;
-  }
-
-  .motor {
-    width: 100%;
-    margin: 0.2rem 0 0;
   }
 
   .nav {

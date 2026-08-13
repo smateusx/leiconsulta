@@ -44,7 +44,6 @@ export default function App() {
   const [page, setPage] = useState(currentPath);
   const [menuOpen, setMenuOpen] = useState(false);
   const [leis, setLeis] = useState([]);
-  const [python, setPython] = useState(false);
   const [apiUp, setApiUp] = useState(null);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
@@ -60,19 +59,10 @@ export default function App() {
   }
 
   async function load() {
-    const [listRes, healthRes] = await Promise.all([
-      fetch(`${API}/api/leis`),
-      fetch(`${API}/api/health`),
-    ]);
+    const listRes = await fetch(`${API}/api/leis`);
     if (!listRes.ok) throw new Error("api");
     setLeis(await listRes.json());
-    if (healthRes.ok) {
-      const health = await healthRes.json();
-      setApiUp(true);
-      setPython(Boolean(health.python));
-    } else {
-      setApiUp(true);
-    }
+    setApiUp(true);
   }
 
   useEffect(() => {
@@ -84,7 +74,7 @@ export default function App() {
   useEffect(() => {
     load().catch(() => {
       setApiUp(false);
-      setError("Não foi possível falar com a API Java. Rode a pasta api com mvnw.");
+      setError("Não foi possível falar com o servidor. Tente de novo em instantes.");
     });
   }, [page]);
 
@@ -128,13 +118,6 @@ export default function App() {
             </a>
           ))}
         </nav>
-        <span className="motor" title="Estado da API e do motor de similaridade">
-          {apiUp === false
-            ? "API desligada"
-            : python
-              ? "Python ligado"
-              : "Só Java"}
-        </span>
       </header>
 
       <main className="page">
@@ -146,9 +129,9 @@ export default function App() {
         {apiUp === false && (
           <p className="msg error">{error}</p>
         )}
-        {page === "/" && <Home go={go} python={python} leis={leis} />}
+        {page === "/" && <Home go={go} leis={leis} />}
         {page === "/consultar" && (
-          <Consultar python={python} onError={setError} error={error} go={go} />
+          <Consultar onError={setError} error={error} go={go} />
         )}
         {page === "/historico" && <Historico go={go} />}
         {page === "/ajuda" && <Ajuda go={go} />}
@@ -198,7 +181,7 @@ export default function App() {
   );
 }
 
-function Home({ go, python, leis = [] }) {
+function Home({ go, leis = [] }) {
   const total = leis.length;
   const [stats, setStats] = useState({ consultas: 0, bloquear: 0, revisar: 0, livre: 0 });
   const porAno = [...new Set(leis.map((lei) => lei.ano))]
@@ -273,11 +256,6 @@ function Home({ go, python, leis = [] }) {
           Histórico
         </button>
       </div>
-      <p className="status">
-        {python
-          ? "Comparação no Python (TF-IDF). PDF e .txt de até 5 MB entram pelo Java."
-          : "Comparação no Java (palavras). Ligue o Python na porta 8002 para o motor completo. PDF continua funcionando."}
-      </p>
       <form
         className="codigo-form"
         onSubmit={(e) => {
@@ -408,7 +386,6 @@ function baixarParecer(result, parecer, texto) {
     `Data: ${new Date().toLocaleString("pt-BR")}`,
     `Parecer: ${parecer.titulo}`,
     parecer.texto,
-    `Fonte: ${result.fonte === "python" ? "Python" : "Java"}`,
     "",
     "Rascunho:",
     texto,
@@ -491,7 +468,7 @@ function DicaArquivo() {
   );
 }
 
-function Consultar({ python, onError, error, go }) {
+function Consultar({ onError, error, go }) {
   const [texto, setTexto] = useState("");
   const [municipio, setMunicipio] = useState("Cachoeira");
   const [arquivoNome, setArquivoNome] = useState("");
@@ -532,7 +509,7 @@ function Consultar({ python, onError, error, go }) {
       }
       setResult(data);
     } catch {
-      onError("A API Java está fora do ar.");
+      onError("Não foi possível falar com o servidor.");
     } finally {
       setLoading(false);
     }
@@ -545,7 +522,6 @@ function Consultar({ python, onError, error, go }) {
       <h1 className="page-title">Consultar proposta</h1>
       <p className="hint">
         Cole o rascunho ou envie um arquivo. Aceito só .txt e .pdf (texto selecionável), até 5 MB.
-        {python ? " A comparação usa Python." : " A comparação usa o Java se o Python estiver desligado."}
       </p>
       <form onSubmit={onSubmit} className="no-print">
         <label htmlFor="arquivo">Arquivo (opcional) — .txt ou .pdf, até 5 MB</label>
@@ -618,10 +594,9 @@ function Consultar({ python, onError, error, go }) {
             Este parecer só compara o texto com o acervo cadastrado. Não é análise jurídica.
           </p>
           <p className="hint">
-            Fonte: {result.fonte === "python" ? "Python" : "Java"}
             {result.resultados?.length
-              ? ` · ${result.resultados.length} lei(s) próxima(s)`
-              : " · nada no acervo"}
+              ? `${result.resultados.length} lei(s) próxima(s)`
+              : "Nada parecido no acervo"}
             {" · "}
             {new Date().toLocaleString("pt-BR")}
           </p>
@@ -722,6 +697,7 @@ function Acervo({ leis, error, notice, onDelete, onSaved }) {
   const [aberto, setAberto] = useState(null);
   const [editando, setEditando] = useState(null);
   const [erroEdicao, setErroEdicao] = useState("");
+  const [copiadoId, setCopiadoId] = useState(null);
   const anos = [...new Set(leis.map((lei) => lei.ano))].sort((a, b) => b - a);
   const municipios = [...new Set(leis.map((lei) => lei.municipio))].sort((a, b) =>
     a.localeCompare(b, "pt-BR")
@@ -840,6 +816,13 @@ function Acervo({ leis, error, notice, onDelete, onSaved }) {
       </div>
       {error && <p className="msg error">{error}</p>}
       {notice && <p className="msg ok">{notice}</p>}
+      {leis.length > 0 && (
+        <p className="hint">
+          {filtradas.length === leis.length
+            ? `${leis.length} lei(s) no acervo.`
+            : `Mostrando ${filtradas.length} de ${leis.length} leis.`}
+        </p>
+      )}
       {!filtradas.length && (
         <p className="hint">
           {leis.length ? "Nenhuma lei com esse termo." : "Ainda não há leis cadastradas."}
@@ -928,6 +911,20 @@ function Acervo({ leis, error, notice, onDelete, onSaved }) {
                 }}
               >
                 Editar
+              </button>
+              <button
+                className="ghost small"
+                type="button"
+                onClick={() => {
+                  copiar(lei.ementa || lei.titulo)
+                    .then(() => {
+                      setCopiadoId(lei.id);
+                      setTimeout(() => setCopiadoId(null), 1500);
+                    })
+                    .catch(() => {});
+                }}
+              >
+                {copiadoId === lei.id ? "Copiado" : "Copiar ementa"}
               </button>
               <button className="danger" type="button" onClick={() => onDelete(lei)}>
                 Apagar

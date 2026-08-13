@@ -26,7 +26,7 @@
 | RF12 | Guardar histórico de consultas | Feito |
 | RF13 | Imprimir e baixar parecer | Feito |
 | RF14 | Exportar acervo em PDF | Feito |
-| RF15 | Exibir estado do motor (Python ou Java) | Feito |
+| RF15 | ~~Exibir estado do motor (Python ou Java)~~ | Removido — linguagem técnica, não é para o gabinete |
 | RF16 | Página de ajuda com os três pareceres | Feito |
 | RF17 | **Alterar lei já cadastrada** | Feito |
 | RF18 | Filtrar acervo por município | Feito |
@@ -36,7 +36,9 @@
 | RF22 | Separar lei parecida de lei só com palavras em comum | Feito |
 | RF23 | Sugerir municípios já cadastrados ao preencher a ficha | Feito |
 | RF24 | Baixar cópia do acervo em JSON | Feito |
-| RF25 | Mostrar no topo se a API e o Python estão ligados | Feito |
+| RF25 | ~~Mostrar no topo se a API e o Python estão ligados~~ | Removido — usuário do gabinete não precisa disso |
+| RF26 | Mostrar quantas leis a busca do acervo devolveu | Feito |
+| RF27 | Copiar ementa da lei no acervo | Feito |
 
 ## 3. Requisitos não funcionais
 
