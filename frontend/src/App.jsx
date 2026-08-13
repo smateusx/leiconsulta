@@ -3,6 +3,7 @@ import "./App.css";
 import Logo from "./Logo.jsx";
 
 const API = import.meta.env.VITE_API_URL || "";
+const MAX_ARQUIVO_BYTES = 5 * 1024 * 1024;
 
 const ROUTES = {
   "/": "Início",
@@ -364,7 +365,13 @@ const EXEMPLO_RASCUNHO =
   "Proíbe a produção de ruído que perturbe o sossego após as 22 horas e antes das 7 horas no perímetro urbano de Cachoeira, Bahia, inclusive bares, festas e obras noturnas sem autorização.";
 
 async function lerArquivo(file) {
-  const nome = file.name.toLowerCase();
+  const nome = (file.name || "").toLowerCase();
+  if (file.size > MAX_ARQUIVO_BYTES) {
+    throw new Error("O arquivo passa de 5 MB. Envie um .txt ou .pdf de até 5 MB.");
+  }
+  if (!nome.endsWith(".txt") && !nome.endsWith(".pdf")) {
+    throw new Error("Formato não aceito. Use só .txt ou .pdf (texto selecionável), até 5 MB.");
+  }
   if (nome.endsWith(".txt")) {
     return file.text();
   }
@@ -373,9 +380,18 @@ async function lerArquivo(file) {
   const res = await fetch(`${API}/api/extrair`, { method: "POST", body });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
-    throw new Error(data.error || "Não foi possível ler o arquivo.");
+    throw new Error(data.error || "Não foi possível ler o arquivo. Use .txt ou .pdf de até 5 MB.");
   }
   return data.texto || "";
+}
+
+function DicaArquivo() {
+  return (
+    <p className="hint">
+      Aceito só <strong>.txt</strong> e <strong>.pdf</strong> com texto selecionável, até{" "}
+      <strong>5 MB</strong>. PDF escaneado (imagem) não entra.
+    </p>
+  );
 }
 
 function Consultar({ python, onError, error, go }) {
@@ -431,11 +447,11 @@ function Consultar({ python, onError, error, go }) {
     <section className="card">
       <h1 className="page-title">Consultar proposta</h1>
       <p className="hint">
-        Cole o rascunho ou envie .txt / .pdf. O sistema compara com o acervo de Cachoeira
-        {python ? " usando Python." : " no Java, se o Python estiver desligado."}
+        Cole o rascunho ou envie um arquivo. Aceito só .txt e .pdf (texto selecionável), até 5 MB.
+        {python ? " A comparação usa Python." : " A comparação usa o Java se o Python estiver desligado."}
       </p>
       <form onSubmit={onSubmit} className="no-print">
-        <label htmlFor="arquivo">Arquivo (opcional)</label>
+        <label htmlFor="arquivo">Arquivo (opcional) — .txt ou .pdf, até 5 MB</label>
         <input
           id="arquivo"
           type="file"
@@ -455,6 +471,7 @@ function Consultar({ python, onError, error, go }) {
             }
           }}
         />
+        <DicaArquivo />
         {arquivoNome && <p className="hint">Lido: {arquivoNome}</p>}
         <label htmlFor="mun">Município</label>
         <input
@@ -953,7 +970,8 @@ function Ajuda({ go }) {
       </p>
       <h2 className="sub">Arquivo</h2>
       <p className="hint">
-        Aceita .txt e PDF com texto selecionável. PDF só de imagem (escaneado) não entra sem OCR.
+        Formatos aceitos: <strong>.txt</strong> e <strong>.pdf</strong> (com texto que dá para
+        selecionar). Tamanho máximo: <strong>5 MB</strong>. PDF só de imagem (escaneado) não entra.
       </p>
       <button type="button" onClick={() => go("/consultar")}>
         Ir para consultar
@@ -1089,7 +1107,7 @@ function Nova({ error, onSaved, onError }) {
         <input id="ano" type="number" value={ano} onChange={(e) => setAno(e.target.value)} required />
         <label htmlFor="ementa">Ementa</label>
         <input id="ementa" value={ementa} onChange={(e) => setEmenta(e.target.value)} required />
-        <label htmlFor="arquivo-nova">Arquivo (opcional)</label>
+        <label htmlFor="arquivo-nova">Arquivo (opcional) — .txt ou .pdf, até 5 MB</label>
         <input
           id="arquivo-nova"
           type="file"
@@ -1107,6 +1125,7 @@ function Nova({ error, onSaved, onError }) {
             }
           }}
         />
+        <DicaArquivo />
         <label htmlFor="texto">Texto</label>
         <textarea id="texto" rows="8" value={texto} onChange={(e) => setTexto(e.target.value)} required />
         <button type="submit" disabled={loading}>

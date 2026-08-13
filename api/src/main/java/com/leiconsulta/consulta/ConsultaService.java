@@ -16,11 +16,11 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 import org.springframework.beans.factory.annotation.Value;
+import org.apache.pdfbox.pdmodel.PDDocument;
+import org.apache.pdfbox.text.PDFTextStripper;
 import org.springframework.core.ParameterizedTypeReference;
-import org.springframework.core.io.ByteArrayResource;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
-import org.springframework.http.client.MultipartBodyBuilder;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.multipart.MultipartFile;
@@ -131,48 +131,55 @@ public class ConsultaService {
     return lei + " · " + Math.round(top.getScore() * 100) + "% · " + top.getNivel();
   }
 
+  public static final long TAMANHO_MAXIMO = 5L * 1024 * 1024;
+
   public Map<String, String> extrair(MultipartFile arquivo) {
     if (arquivo == null || arquivo.isEmpty()) {
-      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Envie um arquivo .txt ou .pdf.");
+      throw new ResponseStatusException(
+          HttpStatus.BAD_REQUEST, "Envie um arquivo .txt ou .pdf de até 5 MB.");
+    }
+    if (arquivo.getSize() > TAMANHO_MAXIMO) {
+      throw new ResponseStatusException(
+          HttpStatus.PAYLOAD_TOO_LARGE, "O arquivo passa de 5 MB. Envie um .txt ou .pdf de até 5 MB.");
     }
     String nome = arquivo.getOriginalFilename() == null
         ? ""
         : arquivo.getOriginalFilename().toLowerCase(Locale.ROOT);
     try {
       if (nome.endsWith(".txt")) {
-        String texto = new String(arquivo.getBytes(), StandardCharsets.UTF_8).trim();
-        if (texto.length() < 8) {
-          throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, "Arquivo sem texto suficiente.");
-        }
-        return Map.of("texto", texto);
+        return Map.of("texto", textoOuErro(new String(arquivo.getBytes(), StandardCharsets.UTF_8)));
       }
       if (!nome.endsWith(".pdf")) {
-        throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Use arquivo .txt ou .pdf.");
+        throw new ResponseStatusException(
+            HttpStatus.BAD_REQUEST,
+            "Formato não aceito. Use só .txt ou .pdf (texto selecionável), até 5 MB.");
       }
-      MultipartBodyBuilder builder = new MultipartBodyBuilder();
-      builder.part("arquivo", new ByteArrayResource(arquivo.getBytes()) {
-        @Override
-        public String getFilename() {
-          return arquivo.getOriginalFilename();
-        }
-      });
-      Map<?, ?> resposta = http.post()
-          .uri(pythonUrl + "/extrair")
-          .contentType(MediaType.MULTIPART_FORM_DATA)
-          .body(builder.build())
-          .retrieve()
-          .body(Map.class);
-      if (resposta == null || resposta.get("texto") == null) {
-        throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "Python não devolveu texto.");
-      }
-      return Map.of("texto", String.valueOf(resposta.get("texto")));
+      return Map.of("texto", textoOuErro(textoDoPdf(arquivo.getBytes())));
     } catch (ResponseStatusException ex) {
       throw ex;
     } catch (IOException ex) {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Não foi possível ler o arquivo.");
-    } catch (Exception ex) {
-      throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "Ligue o Python para ler PDF.");
     }
+  }
+
+  private static String textoDoPdf(byte[] bytes) throws IOException {
+    try (PDDocument doc = PDDocument.load(bytes)) {
+      if (doc.isEncrypted()) {
+        throw new ResponseStatusException(
+            HttpStatus.UNPROCESSABLE_ENTITY, "Este PDF está protegido e não dá para ler o texto.");
+      }
+      return new PDFTextStripper().getText(doc);
+    }
+  }
+
+  private static String textoOuErro(String bruto) {
+    String texto = bruto == null ? "" : bruto.replace('\u0000', ' ').trim();
+    if (texto.length() < 8) {
+      throw new ResponseStatusException(
+          HttpStatus.UNPROCESSABLE_ENTITY,
+          "Não achei texto no arquivo. Use .txt ou PDF com texto selecionável (não escaneado), até 5 MB.");
+    }
+    return texto;
   }
 
   private ConsultaResponse tentarPython(String texto, List<Lei> acervo) {
