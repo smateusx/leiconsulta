@@ -31,6 +31,7 @@
 | RF17 | **Alterar lei já cadastrada** | Feito |
 | RF18 | Filtrar acervo por município | Feito |
 | RF19 | Filtrar histórico por parecer | Feito |
+| RF20 | Abrir comprovante da consulta pelo código | Feito |
 
 ## 3. Requisitos não funcionais
 
@@ -50,15 +51,17 @@
 - RN02: parecer **revisar** se o melhor relevante for `parecida` (score ≥ 0,22).
 - RN03: parecer **livre** se não houver parecida/igual (só relacionada ou nada).
 - RN04: o parecer **não** é parecer jurídico.
-- RN05: só entra no cálculo o que está no acervo daquele município (quando informado).
-- RN06: ao guardar lei nova, o sistema consulta de novo e pede confirmação se não estiver livre.
+- RN05: na tela Consultar, o cálculo usa o município informado; se vier vazio, usa o acervo inteiro. Ao **guardar**, compara com o acervo inteiro (evita furar com “Cachoeira” vs “Cachoeira/BA”).
+- RN06: ao guardar lei nova, o sistema consulta de novo e **recusa** se for igual ou parecida de verdade (não pede “guardar mesmo assim”). Texto sem relação (ex.: trabalho acadêmico com 9% de palavras comuns) **não** é recusado.
+- RN07: arquivo aceito só `.txt` e `.pdf` com texto selecionável, até 5 MB.
 
 ## 5. Casos de uso (resumo)
 
 1. **Consultar proposta** — ator cola/envia texto → sistema devolve parecer + código.
-2. **Guardar lei** — ator preenche ficha → sistema grava no SQLite.
+2. **Guardar lei** — ator preenche ficha → sistema grava no SQLite se o acervo não tiver igual/parecida.
 3. **Consultar acervo** — ator busca/filtra → lê ou exporta.
 4. **Reconsultar pelo histórico** — ator reabre rascunho antigo.
+5. **Abrir comprovante** — ator informa o código LC-AAAA-NNNN e vê a consulta.
 
 ## 6. Fora de escopo
 

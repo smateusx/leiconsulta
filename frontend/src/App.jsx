@@ -151,7 +151,7 @@ export default function App() {
               const res = await fetch(`${API}/api/leis/${lei.id}`, { method: "DELETE" });
               const data = await res.json().catch(() => ({}));
               if (!res.ok) {
-                setError(data.error || `Não foi possível apagar (código ${res.status}).`);
+                setError(data.error || "Não foi possível apagar a lei.");
                 return;
               }
               setNotice("Lei apagada.");
@@ -244,9 +244,31 @@ function Home({ go, python, total }) {
       </div>
       <p className="status">
         {python
-          ? "Similaridade no Python (TF-IDF). PDF digital entra pelo Python."
-          : "Similaridade no Java (palavras). Ligue o Python para PDF e o motor completo."}
+          ? "Comparação no Python (TF-IDF). PDF e .txt de até 5 MB entram pelo Java."
+          : "Comparação no Java (palavras). Ligue o Python na porta 8002 para o motor completo. PDF continua funcionando."}
       </p>
+      <form
+        className="codigo-form"
+        onSubmit={(e) => {
+          e.preventDefault();
+          const campo = e.currentTarget.elements.namedItem("codigo-home");
+          const valor = String(campo?.value || "").trim();
+          if (!valor) return;
+          sessionStorage.setItem("leiconsulta.abrirCodigo", valor);
+          go("/historico");
+        }}
+      >
+        <label htmlFor="codigo-home">Abrir comprovante pelo código</label>
+        <div className="form-actions">
+          <input
+            id="codigo-home"
+            name="codigo-home"
+            placeholder="ex.: LC-2026-0001"
+            autoComplete="off"
+          />
+          <button type="submit">Abrir</button>
+        </div>
+      </form>
     </section>
   );
 }
@@ -514,6 +536,9 @@ function Consultar({ python, onError, error, go }) {
           {result.codigo && <p className="codigo">Consulta {result.codigo}</p>}
           <strong>{parecer.titulo}</strong>
           <p>{parecer.texto}</p>
+          <p className="hint">
+            Este parecer só compara o texto com o acervo cadastrado. Não é análise jurídica.
+          </p>
           <p className="hint">
             Fonte: {result.fonte === "python" ? "Python" : "Java"}
             {result.resultados?.length
@@ -836,8 +861,16 @@ function Historico({ go }) {
   const [aberto, setAberto] = useState(null);
   const [copiado, setCopiado] = useState("");
   const [filtro, setFiltro] = useState("");
+  const [buscaCodigo, setBuscaCodigo] = useState("");
+  const [destaque, setDestaque] = useState("");
 
   useEffect(() => {
+    const pendente = sessionStorage.getItem("leiconsulta.abrirCodigo");
+    if (pendente) {
+      setBuscaCodigo(pendente);
+      setDestaque(pendente.trim().toUpperCase());
+      sessionStorage.removeItem("leiconsulta.abrirCodigo");
+    }
     fetch(`${API}/api/consultas`)
       .then((res) => {
         if (!res.ok) throw new Error("api");
@@ -847,9 +880,12 @@ function Historico({ go }) {
       .catch(() => setErro("Não foi possível carregar o histórico."));
   }, []);
 
-  const filtradas = filtro
-    ? itens.filter((item) => item.parecer === filtro)
-    : itens;
+  const termoCodigo = buscaCodigo.trim().toLowerCase();
+  const filtradas = itens.filter((item) => {
+    if (filtro && item.parecer !== filtro) return false;
+    if (!termoCodigo) return true;
+    return String(item.codigo || "").toLowerCase().includes(termoCodigo);
+  });
 
   return (
     <section className="card">
@@ -857,6 +893,13 @@ function Historico({ go }) {
       <p className="hint">
         Cada consulta ganha um código. Serve para mostrar que o acervo foi checado antes de protocolar.
       </p>
+      <label htmlFor="busca-codigo">Código</label>
+      <input
+        id="busca-codigo"
+        value={buscaCodigo}
+        onChange={(e) => setBuscaCodigo(e.target.value)}
+        placeholder="ex.: LC-2026-0001"
+      />
       <label htmlFor="filtro-parecer">Parecer</label>
       <select id="filtro-parecer" value={filtro} onChange={(e) => setFiltro(e.target.value)}>
         <option value="">Todos</option>
@@ -867,12 +910,12 @@ function Historico({ go }) {
       {erro && <p className="msg error">{erro}</p>}
       {!filtradas.length && !erro && (
         <p className="hint">
-          {itens.length ? "Nenhuma consulta com esse parecer." : "Ainda não há consultas gravadas."}
+          {itens.length ? "Nenhuma consulta com esse filtro." : "Ainda não há consultas gravadas."}
         </p>
       )}
       <div className="list">
         {filtradas.map((item) => (
-          <article key={item.id} className={`match ${item.parecer === "nao_protocolar" ? "igual" : item.parecer === "revisar" ? "parecida" : ""}`}>
+          <article key={item.id} className={`match ${item.parecer === "nao_protocolar" ? "igual" : item.parecer === "revisar" ? "parecida" : ""} ${String(item.codigo || "").toUpperCase() === destaque ? "destaque" : ""}`}>
             <strong>{item.codigo}</strong>
             <p>
               {item.municipio} · {rotuloParecer(item.parecer)} · {formatarData(item.criadoEm)}
@@ -963,10 +1006,17 @@ function Ajuda({ go }) {
           <strong>Nada parecido.</strong> Pode seguir. Guarde a lei no acervo depois.
         </li>
       </ul>
+      <h2 className="sub">Quando o sistema recusa guardar</h2>
+      <p className="hint">
+        Só recusa lei <strong>igual</strong> (72% ou mais) ou <strong>parecida de verdade</strong>
+        (22% ou mais, com termos de conteúdo em comum). Texto de outro assunto, mesmo que
+        compartilhe palavras do português, entra no acervo.
+      </p>
       <h2 className="sub">Código da consulta</h2>
       <p className="hint">
-        Cada consulta ganha um código (ex.: LC-2026-0001). Copie, imprima ou baixe o parecer
-        para mostrar que o acervo foi checado.
+        Cada consulta ganha um código (ex.: LC-2026-0001). Copie, imprima, baixe o parecer
+        ou abra o comprovante na tela inicial. Isso mostra que o acervo foi checado. Não é
+        parecer jurídico da Câmara.
       </p>
       <h2 className="sub">Arquivo</h2>
       <p className="hint">

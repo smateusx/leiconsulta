@@ -53,7 +53,14 @@ npm run dev
 
 Abra http://localhost:5173
 
-Se o Python estiver desligado, o Java ainda consulta (comparação mais simples por palavras).
+No Windows, para abrir os três serviços de uma vez (três janelas):
+
+```powershell
+cd leiconsulta
+powershell -File .\iniciar.ps1
+```
+
+Se o Python estiver desligado, o Java ainda consulta (comparação mais simples por palavras). PDF e .txt (até 5 MB) são lidos pelo Java.
 
 ## API
 
