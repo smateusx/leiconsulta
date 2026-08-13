@@ -1,9 +1,13 @@
 package com.leiconsulta.lei;
 
+import com.leiconsulta.consulta.ConsultaResponse;
+import com.leiconsulta.consulta.ConsultaService;
 import jakarta.validation.Valid;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -12,7 +16,6 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -20,9 +23,11 @@ import org.springframework.web.server.ResponseStatusException;
 @RequestMapping("/api/leis")
 public class LeiController {
   private final LeiRepository leis;
+  private final ConsultaService consultas;
 
-  public LeiController(LeiRepository leis) {
+  public LeiController(LeiRepository leis, ConsultaService consultas) {
     this.leis = leis;
+    this.consultas = consultas;
   }
 
   @GetMapping
@@ -40,8 +45,16 @@ public class LeiController {
   }
 
   @PostMapping
-  @ResponseStatus(HttpStatus.CREATED)
-  public Lei criar(@Valid @RequestBody LeiRequest body) {
+  public ResponseEntity<?> criar(@Valid @RequestBody LeiRequest body) {
+    ConsultaResponse checagem = consultas.consultar(body.getTexto().trim(), body.getMunicipio());
+    if ("nao_protocolar".equals(checagem.getParecer()) || "revisar".equals(checagem.getParecer())) {
+      Map<String, Object> recusa = new LinkedHashMap<>();
+      recusa.put("error", consultas.motivoRecusa(checagem));
+      recusa.put("parecer", checagem.getParecer());
+      recusa.put("resultados", checagem.getResultados());
+      return ResponseEntity.status(HttpStatus.CONFLICT).body(recusa);
+    }
+
     Lei lei = new Lei();
     lei.setTitulo(body.getTitulo().trim());
     lei.setNumero(trimToNull(body.getNumero()));
@@ -49,7 +62,7 @@ public class LeiController {
     lei.setAno(body.getAno());
     lei.setEmenta(body.getEmenta().trim());
     lei.setTexto(body.getTexto().trim());
-    return leis.save(lei);
+    return ResponseEntity.status(HttpStatus.CREATED).body(leis.save(lei));
   }
 
   @PutMapping("/{id}")

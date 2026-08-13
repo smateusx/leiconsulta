@@ -62,7 +62,31 @@ public class ConsultaService {
 
     ConsultaResponse python = tentarPython(texto, acervo);
     ConsultaResponse resposta = python != null ? python : fallbackJava(texto, acervo);
-    return gravar(resposta, texto, municipio);
+    try {
+      return gravar(resposta, texto, municipio);
+    } catch (Exception ex) {
+      return resposta;
+    }
+  }
+
+  public String motivoRecusa(ConsultaResponse consulta) {
+    if (consulta == null || consulta.getResultados() == null || consulta.getResultados().isEmpty()) {
+      if (consulta != null && "nao_protocolar".equals(consulta.getParecer())) {
+        return "Não foi guardada porque já existe uma lei idêntica (ou quase idêntica) no acervo.";
+      }
+      return "Não foi guardada porque já existe uma lei parecida no acervo.";
+    }
+    MatchDto top = consulta.getResultados().get(0);
+    String nome = top.getNumero() == null || top.getNumero().isBlank()
+        ? top.getTitulo()
+        : "Lei nº " + top.getNumero() + " — " + top.getTitulo();
+    int pct = (int) Math.round(top.getScore() * 100);
+    if ("nao_protocolar".equals(consulta.getParecer()) || "igual".equals(top.getNivel())) {
+      return "Não foi guardada porque o texto é idêntico ou quase idêntico a "
+          + nome + " (" + pct + "% de semelhança). Use a lei que já está no acervo.";
+    }
+    return "Não foi guardada porque o texto é parecido com "
+        + nome + " (" + pct + "% de semelhança). Pode ser o mesmo assunto com outra redação.";
   }
 
   public List<ConsultaRegistro> historico() {
