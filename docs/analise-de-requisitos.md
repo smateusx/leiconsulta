@@ -39,6 +39,9 @@
 | RF25 | ~~Mostrar no topo se a API e o Python estão ligados~~ | Removido — usuário do gabinete não precisa disso |
 | RF26 | Mostrar quantas leis a busca do acervo devolveu | Feito |
 | RF27 | Copiar ementa da lei no acervo | Feito |
+| RF28 | Abrir o acervo filtrado pelo ano a partir da tela inicial | Feito |
+| RF29 | Limpar filtros do acervo e rascunho da consulta | Feito |
+| RF30 | Baixar o texto de uma lei em .txt | Feito |
 
 ## 3. Requisitos não funcionais
 

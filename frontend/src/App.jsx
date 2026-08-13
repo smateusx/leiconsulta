@@ -235,7 +235,16 @@ function Home({ go, leis = [] }) {
           {porAno.map((item, i) => (
             <span key={item.ano}>
               {i ? " · " : ""}
-              {item.ano} ({item.qtd})
+              <button
+                type="button"
+                className="linkish"
+                onClick={() => {
+                  sessionStorage.setItem("leiconsulta.acervoAno", String(item.ano));
+                  go("/acervo");
+                }}
+              >
+                {item.ano} ({item.qtd})
+              </button>
             </span>
           ))}
         </p>
@@ -376,6 +385,26 @@ function baixarArquivo(nome, conteudo, tipo = "text/plain;charset=utf-8") {
   a.download = nome;
   a.click();
   URL.revokeObjectURL(url);
+}
+
+function baixarLeiTxt(lei) {
+  const nome = String(lei.numero || lei.titulo || "lei")
+    .replace(/[^\wÀ-ü/-]+/g, "-")
+    .replace(/-+/g, "-");
+  baixarArquivo(
+    `${nome}.txt`,
+    [
+      lei.titulo,
+      lei.numero ? `Lei nº ${lei.numero}` : "",
+      `${lei.municipio} · ${lei.ano}`,
+      "",
+      lei.ementa,
+      "",
+      lei.texto,
+    ]
+      .filter((linha) => linha !== "")
+      .join("\n")
+  );
 }
 
 function baixarParecer(result, parecer, texto) {
@@ -581,6 +610,18 @@ function Consultar({ onError, error, go }) {
           >
             Usar exemplo de Cachoeira
           </button>
+          <button
+            type="button"
+            className="ghost"
+            onClick={() => {
+              setTexto("");
+              setArquivoNome("");
+              setResult(null);
+              onError("");
+            }}
+          >
+            Limpar rascunho
+          </button>
         </div>
       </form>
       {error && <p className="msg error">{error}</p>}
@@ -698,6 +739,14 @@ function Acervo({ leis, error, notice, onDelete, onSaved }) {
   const [editando, setEditando] = useState(null);
   const [erroEdicao, setErroEdicao] = useState("");
   const [copiadoId, setCopiadoId] = useState(null);
+
+  useEffect(() => {
+    const anoInicial = sessionStorage.getItem("leiconsulta.acervoAno");
+    if (anoInicial) {
+      setAno(anoInicial);
+      sessionStorage.removeItem("leiconsulta.acervoAno");
+    }
+  }, []);
   const anos = [...new Set(leis.map((lei) => lei.ano))].sort((a, b) => b - a);
   const municipios = [...new Set(leis.map((lei) => lei.municipio))].sort((a, b) =>
     a.localeCompare(b, "pt-BR")
@@ -813,6 +862,19 @@ function Acervo({ leis, error, notice, onDelete, onSaved }) {
         >
           Cópia JSON
         </button>
+        {(busca || ano || municipio) && (
+          <button
+            type="button"
+            className="ghost"
+            onClick={() => {
+              setBusca("");
+              setAno("");
+              setMunicipio("");
+            }}
+          >
+            Limpar filtros
+          </button>
+        )}
       </div>
       {error && <p className="msg error">{error}</p>}
       {notice && <p className="msg ok">{notice}</p>}
@@ -925,6 +987,13 @@ function Acervo({ leis, error, notice, onDelete, onSaved }) {
                 }}
               >
                 {copiadoId === lei.id ? "Copiado" : "Copiar ementa"}
+              </button>
+              <button
+                className="ghost small"
+                type="button"
+                onClick={() => baixarLeiTxt(lei)}
+              >
+                Baixar texto
               </button>
               <button className="danger" type="button" onClick={() => onDelete(lei)}>
                 Apagar
@@ -1122,9 +1191,13 @@ function Ajuda({ go }) {
       </ul>
       <h2 className="sub">Quando o sistema recusa guardar</h2>
       <p className="hint">
-        Só recusa lei <strong>igual</strong> (72% ou mais) ou <strong>parecida de verdade</strong>
-        (22% ou mais, com termos de conteúdo em comum). Texto de outro assunto, mesmo que
-        compartilhe palavras do português, entra no acervo.
+        Só recusa se o texto for o mesmo (ou quase) ou o mesmo assunto com outra redação.
+        Texto de outro tema entra no acervo.
+      </p>
+      <h2 className="sub">Acervo</h2>
+      <p className="hint">
+        Na tela inicial, clique em um ano para ver as leis daquele ano. Dá para limpar os
+        filtros, copiar a ementa e baixar o texto da lei para usar no Word.
       </p>
       <h2 className="sub">Código da consulta</h2>
       <p className="hint">
@@ -1253,9 +1326,8 @@ function Nova({ error, onSaved, onError }) {
     <section className="card">
       <h1 className="page-title">Nova lei</h1>
       <p className="hint">
-        Antes de guardar, o sistema consulta o acervo. Só recusa se for a mesma lei
-        (ou quase) ou o mesmo assunto com outra redação — um texto qualquer, como um
-        trabalho de faculdade, não deve ser barrado por 9% de palavras comuns.
+        Antes de guardar, o sistema olha o acervo. Se já existir lei igual ou do mesmo
+        assunto, explica o motivo e não grava.
       </p>
       <form onSubmit={onSubmit}>
         <label htmlFor="titulo">Título</label>

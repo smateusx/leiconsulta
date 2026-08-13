@@ -76,6 +76,10 @@ button.linkish {
   text-decoration: underline;
 }
 
+.home .linkish {
+  font-size: inherit;
+}
+
 .sub {
   font-size: 1.05rem;
   margin: 1.2rem 0 0.4rem;
