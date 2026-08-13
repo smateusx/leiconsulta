@@ -10,6 +10,9 @@ public class LeiRequest {
   @Size(max = 200)
   private String titulo;
 
+  @Size(max = 40)
+  private String numero;
+
   @NotBlank
   @Size(max = 120)
   private String municipio;
@@ -32,6 +35,14 @@ public class LeiRequest {
 
   public void setTitulo(String titulo) {
     this.titulo = titulo;
+  }
+
+  public String getNumero() {
+    return numero;
+  }
+
+  public void setNumero(String numero) {
+    this.numero = numero;
   }
 
   public String getMunicipio() {

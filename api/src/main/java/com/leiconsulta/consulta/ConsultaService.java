@@ -62,14 +62,17 @@ public class ConsultaService {
       payload.put("texto", texto);
       payload.put(
           "leis",
-          acervo.stream().map(lei -> Map.of(
-              "id", lei.getId(),
-              "titulo", lei.getTitulo(),
-              "municipio", lei.getMunicipio(),
-              "ano", lei.getAno(),
-              "ementa", lei.getEmenta(),
-              "texto", lei.getTexto()
-          )).toList());
+          acervo.stream().map(lei -> {
+            Map<String, Object> item = new HashMap<>();
+            item.put("id", lei.getId());
+            item.put("titulo", lei.getTitulo());
+            item.put("numero", lei.getNumero() == null ? "" : lei.getNumero());
+            item.put("municipio", lei.getMunicipio());
+            item.put("ano", lei.getAno());
+            item.put("ementa", lei.getEmenta());
+            item.put("texto", lei.getTexto());
+            return item;
+          }).toList());
 
       ConsultaResponse resposta = http.post()
           .uri(pythonUrl + "/compare")
@@ -79,6 +82,7 @@ public class ConsultaService {
           .body(new ParameterizedTypeReference<ConsultaResponse>() {});
       if (resposta != null) {
         resposta.setFonte("python");
+        resposta.setParecer(parecer(resposta.getResultados()));
       }
       return resposta;
     } catch (Exception ex) {
@@ -109,20 +113,35 @@ public class ConsultaService {
     ConsultaResponse res = new ConsultaResponse();
     res.setFonte("java");
     res.setResultados(matches.stream().limit(8).collect(Collectors.toList()));
+    res.setParecer(parecer(res.getResultados()));
     return res;
+  }
+
+  static String parecer(List<MatchDto> matches) {
+    if (matches == null || matches.isEmpty()) {
+      return "livre";
+    }
+    boolean igual = matches.stream().anyMatch(item -> "igual".equals(item.getNivel()));
+    if (igual) {
+      return "nao_protocolar";
+    }
+    boolean parecida = matches.stream().anyMatch(item -> "parecida".equals(item.getNivel()));
+    return parecida ? "revisar" : "livre";
   }
 
   static MatchDto toMatch(Lei lei, double score) {
     MatchDto item = new MatchDto();
     item.setId(lei.getId());
     item.setTitulo(lei.getTitulo());
+    item.setNumero(lei.getNumero());
     item.setMunicipio(lei.getMunicipio());
     item.setAno(lei.getAno());
     item.setEmenta(lei.getEmenta());
+    item.setTexto(lei.getTexto());
     item.setScore(Math.round(score * 1000.0) / 1000.0);
     if (score >= 0.72) {
       item.setNivel("igual");
-    } else if (score >= 0.28) {
+    } else if (score >= 0.22) {
       item.setNivel("parecida");
     } else {
       item.setNivel("relacionada");

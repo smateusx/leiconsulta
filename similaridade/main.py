@@ -23,6 +23,7 @@ app.add_middleware(
 class LeiIn(BaseModel):
     id: int
     titulo: str
+    numero: str = ""
     municipio: str
     ano: int
     ementa: str
@@ -42,7 +43,7 @@ def health():
 def nivel(score: float) -> str:
     if score >= 0.72:
         return "igual"
-    if score >= 0.28:
+    if score >= 0.22:
         return "parecida"
     return "relacionada"
 
@@ -74,9 +75,11 @@ def compare(body: CompareIn):
             {
                 "id": lei.id,
                 "titulo": lei.titulo,
+                "numero": lei.numero,
                 "municipio": lei.municipio,
                 "ano": lei.ano,
                 "ementa": lei.ementa,
+                "texto": lei.texto,
                 "score": round(value, 3),
                 "nivel": nivel(value),
             }

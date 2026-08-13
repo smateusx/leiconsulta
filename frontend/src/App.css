@@ -139,6 +139,31 @@ button.danger {
   color: var(--ok);
 }
 
+.parecer {
+  margin-top: 1.2rem;
+  padding: 0.95rem 1rem;
+  border: 1px solid var(--line);
+}
+
+.parecer.nao_protocolar {
+  border-color: var(--danger);
+  background: #f8ecec;
+}
+
+.parecer.revisar {
+  border-color: var(--accent);
+  background: #eef5f1;
+}
+
+.parecer.livre {
+  border-color: var(--ok);
+  background: #eef6f0;
+}
+
+.parecer p {
+  margin: 0.35rem 0 0;
+}
+
 .results,
 .list {
   margin-top: 1.2rem;
@@ -157,6 +182,27 @@ button.danger {
   justify-content: space-between;
   gap: 1rem;
   align-items: flex-start;
+}
+
+.law-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  flex-shrink: 0;
+}
+
+button.small {
+  margin-top: 0.6rem;
+  min-height: 36px;
+  padding: 0.4rem 0.7rem;
+  font-size: 0.9rem;
+}
+
+.full-text {
+  margin-top: 0.7rem;
+  white-space: pre-wrap;
+  color: var(--ink) !important;
+  line-height: 1.5;
 }
 
 .match.igual {

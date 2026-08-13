@@ -3,9 +3,11 @@ package com.leiconsulta.consulta;
 public class MatchDto {
   private Long id;
   private String titulo;
+  private String numero;
   private String municipio;
   private Integer ano;
   private String ementa;
+  private String texto;
   private double score;
   private String nivel;
 
@@ -23,6 +25,14 @@ public class MatchDto {
 
   public void setTitulo(String titulo) {
     this.titulo = titulo;
+  }
+
+  public String getNumero() {
+    return numero;
+  }
+
+  public void setNumero(String numero) {
+    this.numero = numero;
   }
 
   public String getMunicipio() {
@@ -47,6 +57,14 @@ public class MatchDto {
 
   public void setEmenta(String ementa) {
     this.ementa = ementa;
+  }
+
+  public String getTexto() {
+    return texto;
+  }
+
+  public void setTexto(String texto) {
+    this.texto = texto;
   }
 
   public double getScore() {

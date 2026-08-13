@@ -18,6 +18,9 @@ public class Lei {
   @Column(nullable = false)
   private String titulo;
 
+  @Column(length = 40)
+  private String numero;
+
   @Column(nullable = false)
   private String municipio;
 
@@ -47,6 +50,14 @@ public class Lei {
 
   public void setTitulo(String titulo) {
     this.titulo = titulo;
+  }
+
+  public String getNumero() {
+    return numero;
+  }
+
+  public void setNumero(String numero) {
+    this.numero = numero;
   }
 
   public String getMunicipio() {

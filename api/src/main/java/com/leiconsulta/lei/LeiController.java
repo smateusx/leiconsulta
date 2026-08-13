@@ -32,11 +32,18 @@ public class LeiController {
     return leis.findAllByOrderByAnoDescTituloAsc();
   }
 
+  @GetMapping("/{id}")
+  public Lei obter(@PathVariable Long id) {
+    return leis.findById(id)
+        .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Lei não encontrada."));
+  }
+
   @PostMapping
   @ResponseStatus(HttpStatus.CREATED)
   public Lei criar(@Valid @RequestBody LeiRequest body) {
     Lei lei = new Lei();
     lei.setTitulo(body.getTitulo().trim());
+    lei.setNumero(trimToNull(body.getNumero()));
     lei.setMunicipio(body.getMunicipio().trim());
     lei.setAno(body.getAno());
     lei.setEmenta(body.getEmenta().trim());
@@ -51,5 +58,13 @@ public class LeiController {
     }
     leis.deleteById(id);
     return Map.of("message", "deleted", "id", id);
+  }
+
+  private static String trimToNull(String value) {
+    if (value == null) {
+      return null;
+    }
+    String trimmed = value.trim();
+    return trimmed.isEmpty() ? null : trimmed;
   }
 }
