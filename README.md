@@ -16,7 +16,7 @@ Um código/identificador aponta para o texto da lei. A consulta compara o rascun
 
 ## Parte prática
 
-Vereador ou deputado cola o rascunho ou envia PDF, recebe um parecer (já existe, é parecida, ou o acervo está livre) com os termos em comum, e só então protocola. Cada consulta ganha um código (ex.: LC-2026-0001) e fica no histórico. Dá para imprimir o parecer e comparar o rascunho com a lei lado a lado. O acervo fica digital, com número da lei e texto completo. O exemplo inicial usa **Cachoeira/BA**.
+Vereador ou deputado cola o rascunho ou envia PDF, recebe um parecer (já existe, é parecida, ou o acervo está livre) com os termos em comum, e só então protocola. Cada consulta ganha um código (ex.: LC-2026-0001) e fica no histórico. Dá para imprimir o parecer, copiar o código, reconsultar, comparar o rascunho com a lei lado a lado e exportar o acervo em CSV. Há um exemplo em `exemplos/rascunho-silencio.txt`. O exemplo inicial usa **Cachoeira/BA**.
 
 ## Como rodar
 

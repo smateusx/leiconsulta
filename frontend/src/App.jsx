@@ -130,7 +130,7 @@ export default function App() {
         {page === "/consultar" && (
           <Consultar python={python} onError={setError} error={error} go={go} />
         )}
-        {page === "/historico" && <Historico />}
+        {page === "/historico" && <Historico go={go} />}
         {page === "/acervo" && (
           <Acervo
             leis={leis}
@@ -167,6 +167,23 @@ export default function App() {
 }
 
 function Home({ go, python, total }) {
+  const [stats, setStats] = useState({ consultas: 0, bloquear: 0, revisar: 0, livre: 0 });
+
+  useEffect(() => {
+    fetch(`${API}/api/consultas`)
+      .then((res) => (res.ok ? res.json() : []))
+      .then((itens) => {
+        const list = Array.isArray(itens) ? itens : [];
+        setStats({
+          consultas: list.length,
+          bloquear: list.filter((item) => item.parecer === "nao_protocolar").length,
+          revisar: list.filter((item) => item.parecer === "revisar").length,
+          livre: list.filter((item) => item.parecer === "livre").length,
+        });
+      })
+      .catch(() => {});
+  }, []);
+
   return (
     <section className="home">
       <p className="kicker">Cachoeira / Bahia</p>
@@ -175,6 +192,24 @@ function Home({ go, python, total }) {
         Cole o rascunho ou envie um PDF. O sistema diz se já existe, se é
         parecida, ou se o acervo está livre. Menos papel, menos lei repetida.
       </p>
+      <div className="painel">
+        <div>
+          <strong>{total}</strong>
+          <span>leis no acervo</span>
+        </div>
+        <div>
+          <strong>{stats.consultas}</strong>
+          <span>consultas</span>
+        </div>
+        <div>
+          <strong>{stats.bloquear}</strong>
+          <span>já existiam</span>
+        </div>
+        <div>
+          <strong>{stats.revisar}</strong>
+          <span>para revisar</span>
+        </div>
+      </div>
       <ol className="steps">
         <li>Cole o texto ou envie .txt / .pdf</li>
         <li>Leia o parecer e os trechos em comum</li>
@@ -235,6 +270,34 @@ function formatarData(iso) {
   }
 }
 
+function copiar(texto) {
+  if (navigator.clipboard?.writeText) {
+    return navigator.clipboard.writeText(texto);
+  }
+  return Promise.reject();
+}
+
+function baixarCsv(leis) {
+  const header = ["numero", "titulo", "municipio", "ano", "ementa", "texto"];
+  const linhas = leis.map((lei) =>
+    header
+      .map((campo) => `"${String(lei[campo] ?? "").replace(/"/g, '""')}"`)
+      .join(";")
+  );
+  const blob = new Blob([[header.join(";"), ...linhas].join("\n")], {
+    type: "text/csv;charset=utf-8",
+  });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "acervo-cachoeira.csv";
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+const EXEMPLO_RASCUNHO =
+  "Proíbe a produção de ruído que perturbe o sossego após as 22 horas e antes das 7 horas no perímetro urbano de Cachoeira, Bahia, inclusive bares, festas e obras noturnas sem autorização.";
+
 async function lerArquivo(file) {
   const nome = file.name.toLowerCase();
   if (nome.endsWith(".txt")) {
@@ -257,6 +320,20 @@ function Consultar({ python, onError, error, go }) {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
   const [aberto, setAberto] = useState(null);
+  const [copiado, setCopiado] = useState(false);
+
+  useEffect(() => {
+    const rascunho = sessionStorage.getItem("leiconsulta.rascunho");
+    const mun = sessionStorage.getItem("leiconsulta.municipio");
+    if (rascunho) {
+      setTexto(rascunho);
+      sessionStorage.removeItem("leiconsulta.rascunho");
+    }
+    if (mun) {
+      setMunicipio(mun);
+      sessionStorage.removeItem("leiconsulta.municipio");
+    }
+  }, []);
 
   async function onSubmit(e) {
     e.preventDefault();
@@ -330,9 +407,23 @@ function Consultar({ python, onError, error, go }) {
           placeholder="Proíbe barulho depois das 22 horas no perímetro urbano..."
           required
         />
-        <button type="submit" disabled={loading || texto.trim().length < 8}>
-          {loading ? "Comparando…" : "Ver se já existe"}
-        </button>
+        <div className="form-actions">
+          <button type="submit" disabled={loading || texto.trim().length < 8}>
+            {loading ? "Comparando…" : "Ver se já existe"}
+          </button>
+          <button
+            type="button"
+            className="ghost"
+            onClick={() => {
+              setTexto(EXEMPLO_RASCUNHO);
+              setMunicipio("Cachoeira");
+              setArquivoNome("");
+              setResult(null);
+            }}
+          >
+            Usar exemplo de Cachoeira
+          </button>
+        </div>
       </form>
       {error && <p className="msg error">{error}</p>}
       {result && parecer && (
@@ -356,6 +447,22 @@ function Consultar({ python, onError, error, go }) {
           >
             Imprimir parecer
           </button>
+          {result.codigo && (
+            <button
+              className="ghost small no-print"
+              type="button"
+              onClick={() => {
+                copiar(result.codigo)
+                  .then(() => {
+                    setCopiado(true);
+                    setTimeout(() => setCopiado(false), 1500);
+                  })
+                  .catch(() => onError("Não foi possível copiar o código."));
+              }}
+            >
+              {copiado ? "Código copiado" : "Copiar código"}
+            </button>
+          )}
           <button
             className="ghost small no-print"
             type="button"
@@ -407,7 +514,15 @@ function Consultar({ python, onError, error, go }) {
         </div>
       )}
       {result?.parecer === "livre" && (
-        <button type="button" className="ghost no-print" onClick={() => go("/nova")}>
+        <button
+          type="button"
+          className="ghost no-print"
+          onClick={() => {
+            sessionStorage.setItem("leiconsulta.novaTexto", texto);
+            sessionStorage.setItem("leiconsulta.novaMunicipio", municipio);
+            go("/nova");
+          }}
+        >
           Guardar esta proposta no acervo
         </button>
       )}
@@ -456,6 +571,16 @@ function Acervo({ leis, error, notice, onDelete }) {
           </select>
         </div>
       </div>
+      <div className="form-actions">
+        <button
+          type="button"
+          className="ghost"
+          disabled={!filtradas.length}
+          onClick={() => baixarCsv(filtradas)}
+        >
+          Exportar CSV
+        </button>
+      </div>
       {error && <p className="msg error">{error}</p>}
       {notice && <p className="msg ok">{notice}</p>}
       {!filtradas.length && (
@@ -494,10 +619,11 @@ function Acervo({ leis, error, notice, onDelete }) {
   );
 }
 
-function Historico() {
+function Historico({ go }) {
   const [itens, setItens] = useState([]);
   const [erro, setErro] = useState("");
   const [aberto, setAberto] = useState(null);
+  const [copiado, setCopiado] = useState("");
 
   useEffect(() => {
     fetch(`${API}/api/consultas`)
@@ -525,13 +651,43 @@ function Historico() {
               {item.municipio} · {rotuloParecer(item.parecer)} · {formatarData(item.criadoEm)}
             </p>
             <p>{item.resumo}</p>
-            <button
-              className="ghost small"
-              type="button"
-              onClick={() => setAberto(aberto === item.id ? null : item.id)}
-            >
-              {aberto === item.id ? "Ocultar rascunho" : "Ver rascunho"}
-            </button>
+            <div className="law-actions-row">
+              <button
+                className="ghost small"
+                type="button"
+                onClick={() => setAberto(aberto === item.id ? null : item.id)}
+              >
+                {aberto === item.id ? "Ocultar rascunho" : "Ver rascunho"}
+              </button>
+              <button
+                className="ghost small"
+                type="button"
+                onClick={() => {
+                  copiar(item.codigo)
+                    .then(() => {
+                      setCopiado(item.codigo);
+                      setTimeout(() => setCopiado(""), 1500);
+                    })
+                    .catch(() => setErro("Não foi possível copiar."));
+                }}
+              >
+                {copiado === item.codigo ? "Copiado" : "Copiar código"}
+              </button>
+              <button
+                className="ghost small"
+                type="button"
+                onClick={() => {
+                  sessionStorage.setItem("leiconsulta.rascunho", item.texto);
+                  sessionStorage.setItem(
+                    "leiconsulta.municipio",
+                    item.municipio === "todos" ? "Cachoeira" : item.municipio
+                  );
+                  go("/consultar");
+                }}
+              >
+                Consultar de novo
+              </button>
+            </div>
             {aberto === item.id && <p className="full-text">{item.texto}</p>}
           </article>
         ))}
@@ -548,6 +704,19 @@ function Nova({ error, onSaved, onError }) {
   const [ementa, setEmenta] = useState("");
   const [texto, setTexto] = useState("");
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const rascunho = sessionStorage.getItem("leiconsulta.novaTexto");
+    const mun = sessionStorage.getItem("leiconsulta.novaMunicipio");
+    if (rascunho) {
+      setTexto(rascunho);
+      sessionStorage.removeItem("leiconsulta.novaTexto");
+    }
+    if (mun) {
+      setMunicipio(mun);
+      sessionStorage.removeItem("leiconsulta.novaMunicipio");
+    }
+  }, []);
 
   async function onSubmit(e) {
     e.preventDefault();
