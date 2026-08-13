@@ -981,7 +981,11 @@ function Nova({ error, onSaved, onError }) {
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        onError(data.error || "Não foi possível guardar a lei.");
+        onError(
+          data.error
+          || data.message
+          || `Não foi possível guardar a lei (código ${res.status}). Veja se a API Java está no ar na porta 8080.`
+        );
         return;
       }
       onSaved();

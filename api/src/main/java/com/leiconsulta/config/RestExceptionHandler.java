@@ -25,4 +25,10 @@ public class RestExceptionHandler {
     String msg = ex.getReason() == null ? "Erro na requisição." : ex.getReason();
     return ResponseEntity.status(status).body(Map.of("error", msg));
   }
+
+  @ExceptionHandler(Exception.class)
+  public ResponseEntity<Map<String, String>> generico(Exception ex) {
+    String msg = ex.getMessage() == null ? "Erro ao guardar." : ex.getMessage();
+    return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of("error", msg));
+  }
 }
