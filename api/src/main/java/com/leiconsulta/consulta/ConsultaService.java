@@ -56,9 +56,16 @@ public class ConsultaService {
   }
 
   public ConsultaResponse consultar(String texto, String municipio) {
+    return consultar(texto, municipio, null);
+  }
+
+  public ConsultaResponse consultar(String texto, String municipio, Long excluirId) {
     List<Lei> acervo = municipio == null || municipio.isBlank()
         ? leis.findAllByOrderByAnoDescTituloAsc()
         : leis.findByMunicipioIgnoreCaseOrderByAnoDesc(municipio.trim());
+    if (excluirId != null) {
+      acervo = acervo.stream().filter(lei -> !excluirId.equals(lei.getId())).toList();
+    }
 
     ConsultaResponse python = tentarPython(texto, acervo);
     ConsultaResponse resposta = python != null ? python : fallbackJava(texto, acervo);
@@ -254,7 +261,7 @@ public class ConsultaService {
     return consulta.getResultados().stream().anyMatch(item ->
         "igual".equals(item.getNivel())
             || "parecida".equals(item.getNivel())
-            || item.getScore() >= 0.15);
+            || item.getScore() >= 0.08);
   }
 
   static MatchDto toMatch(Lei lei, double score, String query) {
@@ -270,7 +277,7 @@ public class ConsultaService {
     item.setScore(Math.round(score * 1000.0) / 1000.0);
     if (score >= 0.72) {
       item.setNivel("igual");
-    } else if (score >= 0.15) {
+    } else if (score >= 0.08) {
       item.setNivel("parecida");
     } else {
       item.setNivel("relacionada");

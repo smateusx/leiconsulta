@@ -608,6 +608,7 @@ function Acervo({ leis, error, notice, onDelete, onSaved }) {
   const [municipio, setMunicipio] = useState("");
   const [aberto, setAberto] = useState(null);
   const [editando, setEditando] = useState(null);
+  const [erroEdicao, setErroEdicao] = useState("");
   const anos = [...new Set(leis.map((lei) => lei.ano))].sort((a, b) => b - a);
   const municipios = [...new Set(leis.map((lei) => lei.municipio))].sort((a, b) =>
     a.localeCompare(b, "pt-BR")
@@ -626,6 +627,23 @@ function Acervo({ leis, error, notice, onDelete, onSaved }) {
 
   async function salvarEdicao(e) {
     e.preventDefault();
+    setErroEdicao("");
+    const consulta = await fetch(`${API}/api/consultar`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        texto: `${editando.titulo} ${editando.ementa} ${editando.texto}`,
+      }),
+    });
+    const checagem = await consulta.json().catch(() => ({}));
+    const outros = (checagem.resultados || []).filter((item) => item.id !== editando.id);
+    const niveis = outros.some(
+      (item) => item.nivel === "igual" || item.nivel === "parecida" || item.score >= 0.08
+    );
+    if (niveis) {
+      setErroEdicao(motivoNaoGuardar({ ...checagem, resultados: outros }));
+      return;
+    }
     const res = await fetch(`${API}/api/leis/${editando.id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
@@ -638,7 +656,9 @@ function Acervo({ leis, error, notice, onDelete, onSaved }) {
         texto: editando.texto,
       }),
     });
+    const data = await res.json().catch(() => ({}));
     if (!res.ok) {
+      setErroEdicao(data.error || "Não foi possível guardar a alteração.");
       return;
     }
     setEditando(null);
@@ -754,6 +774,7 @@ function Acervo({ leis, error, notice, onDelete, onSaved }) {
                     onChange={(e) => setEditando({ ...editando, texto: e.target.value })}
                     required
                   />
+                  {erroEdicao && <p className="msg error">{erroEdicao}</p>}
                   <div className="form-actions">
                     <button type="submit">Guardar alteração</button>
                     <button type="button" className="ghost" onClick={() => setEditando(null)}>
@@ -999,12 +1020,11 @@ function Nova({ error, onSaved, onError }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           texto: `${titulo} ${ementa} ${texto}`,
-          municipio,
         }),
       });
       const checagem = await consulta.json().catch(() => ({}));
       const niveis = (checagem.resultados || []).some(
-        (item) => item.nivel === "igual" || item.nivel === "parecida" || item.score >= 0.15
+        (item) => item.nivel === "igual" || item.nivel === "parecida" || item.score >= 0.08
       );
       if (
         checagem.parecer === "nao_protocolar"

@@ -10,5 +10,11 @@ public interface LeiRepository extends JpaRepository<Lei, Long> {
 
   boolean existsByMunicipioIgnoreCaseAndTituloIgnoreCase(String municipio, String titulo);
 
+  boolean existsByMunicipioIgnoreCaseAndTituloIgnoreCaseAndIdNot(
+      String municipio, String titulo, Long id);
+
   boolean existsByMunicipioIgnoreCaseAndNumeroIgnoreCase(String municipio, String numero);
+
+  boolean existsByMunicipioIgnoreCaseAndNumeroIgnoreCaseAndIdNot(
+      String municipio, String numero, Long id);
 }

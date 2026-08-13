@@ -59,14 +59,9 @@ public class LeiController {
       return recusaNumero(numero);
     }
 
-    String paraComparar = titulo + " " + ementa + " " + texto;
-    ConsultaResponse checagem = consultas.consultar(paraComparar, municipio);
-    if (consultas.deveRecusar(checagem)) {
-      Map<String, Object> recusa = new LinkedHashMap<>();
-      recusa.put("error", consultas.motivoRecusa(checagem));
-      recusa.put("parecer", checagem.getParecer());
-      recusa.put("resultados", checagem.getResultados());
-      return ResponseEntity.status(HttpStatus.CONFLICT).body(recusa);
+    ResponseEntity<?> recusa = recusarSeParecida(titulo, ementa, texto, null);
+    if (recusa != null) {
+      return recusa;
     }
 
     Lei lei = new Lei();
@@ -80,16 +75,34 @@ public class LeiController {
   }
 
   @PutMapping("/{id}")
-  public Lei alterar(@PathVariable Long id, @Valid @RequestBody LeiRequest body) {
+  public ResponseEntity<?> alterar(@PathVariable Long id, @Valid @RequestBody LeiRequest body) {
     Lei lei = leis.findById(id)
         .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Lei não encontrada."));
-    lei.setTitulo(body.getTitulo().trim());
-    lei.setNumero(trimToNull(body.getNumero()));
-    lei.setMunicipio(body.getMunicipio().trim());
+    String municipio = body.getMunicipio().trim();
+    String titulo = body.getTitulo().trim();
+    String numero = trimToNull(body.getNumero());
+    String ementa = body.getEmenta().trim();
+    String texto = body.getTexto().trim();
+
+    if (leis.existsByMunicipioIgnoreCaseAndTituloIgnoreCaseAndIdNot(municipio, titulo, id)) {
+      return recusaTitulo(titulo);
+    }
+    if (numero != null && leis.existsByMunicipioIgnoreCaseAndNumeroIgnoreCaseAndIdNot(municipio, numero, id)) {
+      return recusaNumero(numero);
+    }
+
+    ResponseEntity<?> recusa = recusarSeParecida(titulo, ementa, texto, id);
+    if (recusa != null) {
+      return recusa;
+    }
+
+    lei.setTitulo(titulo);
+    lei.setNumero(numero);
+    lei.setMunicipio(municipio);
     lei.setAno(body.getAno());
-    lei.setEmenta(body.getEmenta().trim());
-    lei.setTexto(body.getTexto().trim());
-    return leis.save(lei);
+    lei.setEmenta(ementa);
+    lei.setTexto(texto);
+    return ResponseEntity.ok(leis.save(lei));
   }
 
   @DeleteMapping("/{id}")
@@ -99,6 +112,59 @@ public class LeiController {
     }
     leis.deleteById(id);
     return Map.of("message", "deleted", "id", id);
+  }
+
+  private ResponseEntity<?> recusarSeParecida(String titulo, String ementa, String texto, Long excluirId) {
+    Lei igual = leiTextoIgual(titulo, ementa, texto, excluirId);
+    if (igual != null) {
+      Map<String, Object> recusa = new LinkedHashMap<>();
+      String nome = igual.getNumero() == null || igual.getNumero().isBlank()
+          ? igual.getTitulo()
+          : "Lei nº " + igual.getNumero() + " — " + igual.getTitulo();
+      recusa.put("error", "Não foi guardada porque o texto é idêntico ou quase idêntico a " + nome + ".");
+      recusa.put("parecer", "nao_protocolar");
+      recusa.put("resultados", List.of());
+      return ResponseEntity.status(HttpStatus.CONFLICT).body(recusa);
+    }
+
+    String paraComparar = titulo + " " + ementa + " " + texto;
+    ConsultaResponse checagem = consultas.consultar(paraComparar, null, excluirId);
+    if (consultas.deveRecusar(checagem)) {
+      Map<String, Object> recusa = new LinkedHashMap<>();
+      recusa.put("error", consultas.motivoRecusa(checagem));
+      recusa.put("parecer", checagem.getParecer());
+      recusa.put("resultados", checagem.getResultados());
+      return ResponseEntity.status(HttpStatus.CONFLICT).body(recusa);
+    }
+    return null;
+  }
+
+  private Lei leiTextoIgual(String titulo, String ementa, String texto, Long excluirId) {
+    String nTexto = norm(texto);
+    String nTudo = norm(titulo + " " + ementa + " " + texto);
+    String nEmenta = norm(ementa);
+    for (Lei lei : leis.findAll()) {
+      if (excluirId != null && excluirId.equals(lei.getId())) {
+        continue;
+      }
+      if (!nTexto.isBlank() && nTexto.equals(norm(lei.getTexto()))) {
+        return lei;
+      }
+      if (nEmenta.length() >= 24 && nEmenta.equals(norm(lei.getEmenta()))) {
+        return lei;
+      }
+      if (nTudo.equals(norm(lei.getTitulo() + " " + lei.getEmenta() + " " + lei.getTexto()))) {
+        return lei;
+      }
+    }
+    return null;
+  }
+
+  private static String norm(String value) {
+    if (value == null) {
+      return "";
+    }
+    return value.toLowerCase().replaceAll("\\s+", " ").trim();
   }
 
   private static String trimToNull(String value) {

@@ -49,7 +49,7 @@ def health():
 def nivel(score: float) -> str:
     if score >= 0.72:
         return "igual"
-    if score >= 0.15:
+    if score >= 0.08:
         return "parecida"
     return "relacionada"
 
