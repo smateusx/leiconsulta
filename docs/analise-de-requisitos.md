@@ -32,6 +32,8 @@
 | RF18 | Filtrar acervo por município | Feito |
 | RF19 | Filtrar histórico por parecer | Feito |
 | RF20 | Abrir comprovante da consulta pelo código | Feito |
+| RF21 | Mostrar quantidade de leis por ano na tela inicial | Feito |
+| RF22 | Separar lei parecida de lei só com palavras em comum | Feito |
 
 ## 3. Requisitos não funcionais
 

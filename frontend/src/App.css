@@ -379,8 +379,9 @@ button.small {
   border-color: var(--danger);
 }
 
-.match.parecida {
-  border-color: var(--accent);
+.match.relacionada {
+  border-style: dashed;
+  opacity: 0.92;
 }
 
 .match p,

@@ -130,7 +130,7 @@ export default function App() {
         {apiUp === false && (
           <p className="msg error">{error}</p>
         )}
-        {page === "/" && <Home go={go} python={python} total={leis.length} />}
+        {page === "/" && <Home go={go} python={python} leis={leis} />}
         {page === "/consultar" && (
           <Consultar python={python} onError={setError} error={error} go={go} />
         )}
@@ -182,8 +182,12 @@ export default function App() {
   );
 }
 
-function Home({ go, python, total }) {
+function Home({ go, python, leis = [] }) {
+  const total = leis.length;
   const [stats, setStats] = useState({ consultas: 0, bloquear: 0, revisar: 0, livre: 0 });
+  const porAno = [...new Set(leis.map((lei) => lei.ano))]
+    .sort((a, b) => b - a)
+    .map((ano) => ({ ano, qtd: leis.filter((lei) => lei.ano === ano).length }));
 
   useEffect(() => {
     fetch(`${API}/api/consultas`)
@@ -226,6 +230,17 @@ function Home({ go, python, total }) {
           <span>para revisar</span>
         </div>
       </div>
+      {porAno.length > 0 && (
+        <p className="hint">
+          Acervo por ano:{" "}
+          {porAno.map((item, i) => (
+            <span key={item.ano}>
+              {i ? " · " : ""}
+              {item.ano} ({item.qtd})
+            </span>
+          ))}
+        </p>
+      )}
       <ol className="steps">
         <li>Cole o texto ou envie .txt / .pdf</li>
         <li>Leia o parecer e os trechos em comum</li>
@@ -270,6 +285,50 @@ function Home({ go, python, total }) {
         </div>
       </form>
     </section>
+  );
+}
+
+function ResultadoLei({ item, texto, aberto, setAberto }) {
+  return (
+    <article className={`match ${item.nivel}`}>
+      <strong>{item.titulo}</strong>
+      <p>
+        {item.numero ? `Lei nº ${item.numero} · ` : ""}
+        {item.municipio} · {item.ano} · {Math.round(item.score * 100)}% ·{" "}
+        {item.nivel === "igual"
+          ? "igual"
+          : item.nivel === "parecida"
+            ? "parecida"
+            : "só palavras em comum"}
+      </p>
+      <p>{item.ementa}</p>
+      {item.termos?.length > 0 && (
+        <p className="termos">
+          {item.termos.map((termo) => (
+            <span key={termo}>{termo}</span>
+          ))}
+        </p>
+      )}
+      <button
+        className="ghost small no-print"
+        type="button"
+        onClick={() => setAberto(aberto === item.id ? null : item.id)}
+      >
+        {aberto === item.id ? "Ocultar texto" : "Ler texto"}
+      </button>
+      {aberto === item.id && (
+        <div className="lado">
+          <div>
+            <p className="kicker">Sua proposta</p>
+            <p className="full-text">{texto}</p>
+          </div>
+          <div>
+            <p className="kicker">Lei do acervo</p>
+            <Destaque texto={item.texto} termos={item.termos} />
+          </div>
+        </div>
+      )}
+    </article>
   );
 }
 
@@ -588,43 +647,36 @@ function Consultar({ python, onError, error, go }) {
       )}
       {result && (
         <div className="results">
-          {(result.resultados || []).map((item) => (
-            <article key={item.id} className={`match ${item.nivel}`}>
-              <strong>{item.titulo}</strong>
-              <p>
-                {item.numero ? `Lei nº ${item.numero} · ` : ""}
-                {item.municipio} · {item.ano} · {Math.round(item.score * 100)}% ·{" "}
-                {NIVEL[item.nivel] || item.nivel}
+          {(result.resultados || [])
+            .filter((item) => item.nivel === "igual" || item.nivel === "parecida")
+            .map((item) => (
+              <ResultadoLei
+                key={item.id}
+                item={item}
+                texto={texto}
+                aberto={aberto}
+                setAberto={setAberto}
+              />
+            ))}
+          {(result.resultados || []).some((item) => item.nivel === "relacionada") && (
+            <>
+              <h2 className="sub">Só palavras em comum — não impede protocolar</h2>
+              <p className="hint">
+                Aparece aqui lei com pouca semelhança. Não é o mesmo assunto.
               </p>
-              <p>{item.ementa}</p>
-              {item.termos?.length > 0 && (
-                <p className="termos">
-                  {item.termos.map((termo) => (
-                    <span key={termo}>{termo}</span>
-                  ))}
-                </p>
-              )}
-              <button
-                className="ghost small no-print"
-                type="button"
-                onClick={() => setAberto(aberto === item.id ? null : item.id)}
-              >
-                {aberto === item.id ? "Ocultar texto" : "Ler texto"}
-              </button>
-              {aberto === item.id && (
-                <div className="lado">
-                  <div>
-                    <p className="kicker">Sua proposta</p>
-                    <p className="full-text">{texto}</p>
-                  </div>
-                  <div>
-                    <p className="kicker">Lei do acervo</p>
-                    <Destaque texto={item.texto} termos={item.termos} />
-                  </div>
-                </div>
-              )}
-            </article>
-          ))}
+              {(result.resultados || [])
+                .filter((item) => item.nivel === "relacionada")
+                .map((item) => (
+                  <ResultadoLei
+                    key={item.id}
+                    item={item}
+                    texto={texto}
+                    aberto={aberto}
+                    setAberto={setAberto}
+                  />
+                ))}
+            </>
+          )}
         </div>
       )}
       {result?.parecer === "livre" && (
@@ -879,6 +931,30 @@ function Historico({ go }) {
       .then(setItens)
       .catch(() => setErro("Não foi possível carregar o histórico."));
   }, []);
+
+  useEffect(() => {
+    const codigo = buscaCodigo.trim().toUpperCase();
+    if (!/^LC-\d{4}-\d{4}$/.test(codigo)) return;
+    if (itens.some((item) => String(item.codigo || "").toUpperCase() === codigo)) return;
+    let cancelado = false;
+    fetch(`${API}/api/consultas/${encodeURIComponent(codigo)}`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((item) => {
+        if (cancelado || !item?.id) {
+          if (!cancelado && !item?.id) {
+            setErro("Não achei consulta com esse código.");
+          }
+          return;
+        }
+        setErro("");
+        setItens((prev) => (prev.some((p) => p.id === item.id) ? prev : [item, ...prev]));
+        setDestaque(codigo);
+      })
+      .catch(() => {});
+    return () => {
+      cancelado = true;
+    };
+  }, [buscaCodigo, itens]);
 
   const termoCodigo = buscaCodigo.trim().toLowerCase();
   const filtradas = itens.filter((item) => {
