@@ -8,6 +8,8 @@ Plataforma para guardar leis municipais e consultar se uma proposta nova já exi
 | Java / Spring Boot | `api` | 8080 | Cadastro, listagem, consulta |
 | Python | `similaridade` | 8002 | Semelhança entre textos (TF-IDF) |
 
+Documentos de análise: `docs/analise-de-negocio.md` e `docs/analise-de-requisitos.md`.
+
 Sem serviços pagos. SQLite em `api/data/leis.db`.
 
 ## Parte teórica
@@ -58,7 +60,7 @@ Se o Python estiver desligado, o Java ainda consulta (comparação mais simples 
 - `GET /api/health`
 - `GET /api/leis`
 - `GET /api/leis/{id}`
-- `POST /api/leis`
+- `PUT /api/leis/{id}`
 - `DELETE /api/leis/{id}`
 - `POST /api/consultar` `{ "texto": "...", "municipio": "opcional" }` → `parecer` + `codigo` (ex.: `LC-2026-0001`)
 - `GET /api/consultas`

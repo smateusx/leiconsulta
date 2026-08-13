@@ -8,6 +8,7 @@ import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -42,6 +43,19 @@ public class LeiController {
   @ResponseStatus(HttpStatus.CREATED)
   public Lei criar(@Valid @RequestBody LeiRequest body) {
     Lei lei = new Lei();
+    lei.setTitulo(body.getTitulo().trim());
+    lei.setNumero(trimToNull(body.getNumero()));
+    lei.setMunicipio(body.getMunicipio().trim());
+    lei.setAno(body.getAno());
+    lei.setEmenta(body.getEmenta().trim());
+    lei.setTexto(body.getTexto().trim());
+    return leis.save(lei);
+  }
+
+  @PutMapping("/{id}")
+  public Lei alterar(@PathVariable Long id, @Valid @RequestBody LeiRequest body) {
+    Lei lei = leis.findById(id)
+        .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Lei não encontrada."));
     lei.setTitulo(body.getTitulo().trim());
     lei.setNumero(trimToNull(body.getNumero()));
     lei.setMunicipio(body.getMunicipio().trim());

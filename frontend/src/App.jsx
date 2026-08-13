@@ -140,6 +140,10 @@ export default function App() {
             leis={leis}
             error={error}
             notice={notice}
+            onSaved={async (msg) => {
+              setNotice(msg);
+              await load();
+            }}
             onDelete={async (id) => {
               const ok = window.confirm("Apagar esta lei do acervo?");
               if (!ok) return;
@@ -580,14 +584,20 @@ function Consultar({ python, onError, error, go }) {
   );
 }
 
-function Acervo({ leis, error, notice, onDelete }) {
+function Acervo({ leis, error, notice, onDelete, onSaved }) {
   const [busca, setBusca] = useState("");
   const [ano, setAno] = useState("");
+  const [municipio, setMunicipio] = useState("");
   const [aberto, setAberto] = useState(null);
+  const [editando, setEditando] = useState(null);
   const anos = [...new Set(leis.map((lei) => lei.ano))].sort((a, b) => b - a);
+  const municipios = [...new Set(leis.map((lei) => lei.municipio))].sort((a, b) =>
+    a.localeCompare(b, "pt-BR")
+  );
   const termo = busca.trim().toLowerCase();
   const filtradas = leis.filter((lei) => {
     if (ano && String(lei.ano) !== ano) return false;
+    if (municipio && lei.municipio !== municipio) return false;
     if (!termo) return true;
     return [lei.titulo, lei.numero, lei.municipio, lei.ementa, lei.texto, String(lei.ano)]
       .filter(Boolean)
@@ -596,10 +606,31 @@ function Acervo({ leis, error, notice, onDelete }) {
       .includes(termo);
   });
 
+  async function salvarEdicao(e) {
+    e.preventDefault();
+    const res = await fetch(`${API}/api/leis/${editando.id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        titulo: editando.titulo,
+        numero: editando.numero || "",
+        municipio: editando.municipio,
+        ano: Number(editando.ano),
+        ementa: editando.ementa,
+        texto: editando.texto,
+      }),
+    });
+    if (!res.ok) {
+      return;
+    }
+    setEditando(null);
+    await onSaved("Lei atualizada.");
+  }
+
   return (
     <section className="card">
       <h1 className="page-title">Acervo</h1>
-      <div className="filtros">
+      <div className="filtros tres">
         <div>
           <label htmlFor="busca">Buscar</label>
           <input
@@ -608,6 +639,17 @@ function Acervo({ leis, error, notice, onDelete }) {
             onChange={(e) => setBusca(e.target.value)}
             placeholder="título, número, ementa, Paraguaçu..."
           />
+        </div>
+        <div>
+          <label htmlFor="mun-filtro">Município</label>
+          <select id="mun-filtro" value={municipio} onChange={(e) => setMunicipio(e.target.value)}>
+            <option value="">Todos</option>
+            {municipios.map((item) => (
+              <option key={item} value={item}>
+                {item}
+              </option>
+            ))}
+          </select>
         </div>
         <div>
           <label htmlFor="ano-filtro">Ano</label>
@@ -648,7 +690,60 @@ function Acervo({ leis, error, notice, onDelete }) {
                 {lei.municipio} · {lei.ano}
               </p>
               <p>{lei.ementa}</p>
-              {aberto === lei.id && <p className="full-text">{lei.texto}</p>}
+              {aberto === lei.id && !editando && <p className="full-text">{lei.texto}</p>}
+              {editando?.id === lei.id && (
+                <form className="edit-form" onSubmit={salvarEdicao}>
+                  <label htmlFor={`ed-titulo-${lei.id}`}>Título</label>
+                  <input
+                    id={`ed-titulo-${lei.id}`}
+                    value={editando.titulo}
+                    onChange={(e) => setEditando({ ...editando, titulo: e.target.value })}
+                    required
+                  />
+                  <label htmlFor={`ed-num-${lei.id}`}>Número</label>
+                  <input
+                    id={`ed-num-${lei.id}`}
+                    value={editando.numero || ""}
+                    onChange={(e) => setEditando({ ...editando, numero: e.target.value })}
+                  />
+                  <label htmlFor={`ed-mun-${lei.id}`}>Município</label>
+                  <input
+                    id={`ed-mun-${lei.id}`}
+                    value={editando.municipio}
+                    onChange={(e) => setEditando({ ...editando, municipio: e.target.value })}
+                    required
+                  />
+                  <label htmlFor={`ed-ano-${lei.id}`}>Ano</label>
+                  <input
+                    id={`ed-ano-${lei.id}`}
+                    type="number"
+                    value={editando.ano}
+                    onChange={(e) => setEditando({ ...editando, ano: e.target.value })}
+                    required
+                  />
+                  <label htmlFor={`ed-em-${lei.id}`}>Ementa</label>
+                  <input
+                    id={`ed-em-${lei.id}`}
+                    value={editando.ementa}
+                    onChange={(e) => setEditando({ ...editando, ementa: e.target.value })}
+                    required
+                  />
+                  <label htmlFor={`ed-tx-${lei.id}`}>Texto</label>
+                  <textarea
+                    id={`ed-tx-${lei.id}`}
+                    rows="6"
+                    value={editando.texto}
+                    onChange={(e) => setEditando({ ...editando, texto: e.target.value })}
+                    required
+                  />
+                  <div className="form-actions">
+                    <button type="submit">Guardar alteração</button>
+                    <button type="button" className="ghost" onClick={() => setEditando(null)}>
+                      Cancelar
+                    </button>
+                  </div>
+                </form>
+              )}
             </div>
             <div className="law-actions">
               <button
@@ -657,6 +752,16 @@ function Acervo({ leis, error, notice, onDelete }) {
                 onClick={() => setAberto(aberto === lei.id ? null : lei.id)}
               >
                 {aberto === lei.id ? "Ocultar" : "Ler"}
+              </button>
+              <button
+                className="ghost small"
+                type="button"
+                onClick={() => {
+                  setEditando({ ...lei });
+                  setAberto(lei.id);
+                }}
+              >
+                Editar
               </button>
               <button className="danger" type="button" onClick={() => onDelete(lei.id)}>
                 Apagar

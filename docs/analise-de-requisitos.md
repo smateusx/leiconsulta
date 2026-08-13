@@ -1,0 +1,69 @@
+# Análise de requisitos — LeiConsulta
+
+**Projeto:** LeiConsulta  
+**Base:** análise de negócio do mesmo piloto (Cachoeira/BA)  
+**Data:** 13/08/2026
+
+## 1. Atores do sistema
+
+- **Usuário de gabinete** (vereador, deputado ou assessoria): único ator nesta versão. Não há login.
+
+## 2. Requisitos funcionais
+
+| ID | Requisito | Status |
+|---|---|---|
+| RF01 | Cadastrar lei (título, número, município, ano, ementa, texto) | Feito |
+| RF02 | Listar e buscar leis do acervo | Feito |
+| RF03 | Filtrar acervo por ano | Feito |
+| RF04 | Ler texto completo da lei | Feito |
+| RF05 | Apagar lei (com confirmação) | Feito |
+| RF06 | Consultar rascunho contra o acervo | Feito |
+| RF07 | Devolver parecer: já existe / parecida / livre | Feito |
+| RF08 | Mostrar leis próximas, percentual e termos em comum | Feito |
+| RF09 | Comparar rascunho e lei lado a lado | Feito |
+| RF10 | Aceitar texto colado, .txt e PDF com texto | Feito |
+| RF11 | Gerar código da consulta (LC-AAAA-NNNN) | Feito |
+| RF12 | Guardar histórico de consultas | Feito |
+| RF13 | Imprimir e baixar parecer | Feito |
+| RF14 | Exportar acervo em CSV | Feito |
+| RF15 | Exibir estado do motor (Python ou Java) | Feito |
+| RF16 | Página de ajuda com os três pareceres | Feito |
+| RF17 | **Alterar lei já cadastrada** | Feito |
+| RF18 | Filtrar acervo por município | Feito |
+| RF19 | Filtrar histórico por parecer | Feito |
+
+## 3. Requisitos não funcionais
+
+| ID | Requisito | Como o piloto atende |
+|---|---|---|
+| RNF01 | Sem serviço pago | Local: React, Spring Boot, FastAPI, SQLite |
+| RNF02 | Java no portfólio | API Spring Boot 3 / Java 21 |
+| RNF03 | Interface em português | Toda a UI em pt-BR |
+| RNF04 | Uso em notebook (Windows) | Três processos locais (5173, 8080, 8002) |
+| RNF05 | Consulta funciona se o Python cair | Fallback Jaccard no Java |
+| RNF06 | PDF escaneado fora do recorte | Sem OCR nesta versão |
+| RNF07 | Dados no disco local | `api/data/leis.db` |
+
+## 4. Regras de negócio (operacionais)
+
+- RN01: parecer **já existe** se houver match com nível `igual` (score ≥ 0,72).
+- RN02: parecer **revisar** se o melhor relevante for `parecida` (score ≥ 0,22).
+- RN03: parecer **livre** se não houver parecida/igual (só relacionada ou nada).
+- RN04: o parecer **não** é parecer jurídico.
+- RN05: só entra no cálculo o que está no acervo daquele município (quando informado).
+- RN06: ao guardar lei nova, o sistema consulta de novo e pede confirmação se não estiver livre.
+
+## 5. Casos de uso (resumo)
+
+1. **Consultar proposta** — ator cola/envia texto → sistema devolve parecer + código.
+2. **Guardar lei** — ator preenche ficha → sistema grava no SQLite.
+3. **Consultar acervo** — ator busca/filtra → lê ou exporta.
+4. **Reconsultar pelo histórico** — ator reabre rascunho antigo.
+
+## 6. Fora de escopo
+
+Login, OCR, diário oficial, tramitação, votação, assinatura digital, multi-gabinete na nuvem.
+
+## 7. Rastreio (implementação)
+
+Camadas: React (`frontend`) → Java (`api`) → Python TF-IDF (`similaridade`) ou Jaccard no Java. Identificador de consulta: `LC-{ano}-{id}`.
