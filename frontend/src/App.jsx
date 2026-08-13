@@ -997,10 +997,20 @@ function Nova({ error, onSaved, onError }) {
       const consulta = await fetch(`${API}/api/consultar`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ texto, municipio }),
+        body: JSON.stringify({
+          texto: `${titulo} ${ementa} ${texto}`,
+          municipio,
+        }),
       });
       const checagem = await consulta.json().catch(() => ({}));
-      if (checagem.parecer === "nao_protocolar" || checagem.parecer === "revisar") {
+      const niveis = (checagem.resultados || []).some(
+        (item) => item.nivel === "igual" || item.nivel === "parecida" || item.score >= 0.15
+      );
+      if (
+        checagem.parecer === "nao_protocolar"
+        || checagem.parecer === "revisar"
+        || niveis
+      ) {
         aplicarBloqueio(checagem, setBloqueio);
         return;
       }

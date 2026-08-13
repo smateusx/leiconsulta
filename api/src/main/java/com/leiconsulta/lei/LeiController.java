@@ -46,8 +46,22 @@ public class LeiController {
 
   @PostMapping
   public ResponseEntity<?> criar(@Valid @RequestBody LeiRequest body) {
-    ConsultaResponse checagem = consultas.consultar(body.getTexto().trim(), body.getMunicipio());
-    if ("nao_protocolar".equals(checagem.getParecer()) || "revisar".equals(checagem.getParecer())) {
+    String municipio = body.getMunicipio().trim();
+    String titulo = body.getTitulo().trim();
+    String numero = trimToNull(body.getNumero());
+    String ementa = body.getEmenta().trim();
+    String texto = body.getTexto().trim();
+
+    if (leis.existsByMunicipioIgnoreCaseAndTituloIgnoreCase(municipio, titulo)) {
+      return recusaTitulo(titulo);
+    }
+    if (numero != null && leis.existsByMunicipioIgnoreCaseAndNumeroIgnoreCase(municipio, numero)) {
+      return recusaNumero(numero);
+    }
+
+    String paraComparar = titulo + " " + ementa + " " + texto;
+    ConsultaResponse checagem = consultas.consultar(paraComparar, municipio);
+    if (consultas.deveRecusar(checagem)) {
       Map<String, Object> recusa = new LinkedHashMap<>();
       recusa.put("error", consultas.motivoRecusa(checagem));
       recusa.put("parecer", checagem.getParecer());
@@ -56,12 +70,12 @@ public class LeiController {
     }
 
     Lei lei = new Lei();
-    lei.setTitulo(body.getTitulo().trim());
-    lei.setNumero(trimToNull(body.getNumero()));
-    lei.setMunicipio(body.getMunicipio().trim());
+    lei.setTitulo(titulo);
+    lei.setNumero(numero);
+    lei.setMunicipio(municipio);
     lei.setAno(body.getAno());
-    lei.setEmenta(body.getEmenta().trim());
-    lei.setTexto(body.getTexto().trim());
+    lei.setEmenta(ementa);
+    lei.setTexto(texto);
     return ResponseEntity.status(HttpStatus.CREATED).body(leis.save(lei));
   }
 
@@ -93,5 +107,21 @@ public class LeiController {
     }
     String trimmed = value.trim();
     return trimmed.isEmpty() ? null : trimmed;
+  }
+
+  private static ResponseEntity<Map<String, Object>> recusaTitulo(String titulo) {
+    Map<String, Object> recusa = new LinkedHashMap<>();
+    recusa.put("error", "Não foi guardada porque já existe uma lei com o mesmo título no município: " + titulo + ".");
+    recusa.put("parecer", "nao_protocolar");
+    recusa.put("resultados", List.of());
+    return ResponseEntity.status(HttpStatus.CONFLICT).body(recusa);
+  }
+
+  private static ResponseEntity<Map<String, Object>> recusaNumero(String numero) {
+    Map<String, Object> recusa = new LinkedHashMap<>();
+    recusa.put("error", "Não foi guardada porque já existe a Lei nº " + numero + " neste município.");
+    recusa.put("parecer", "nao_protocolar");
+    recusa.put("resultados", List.of());
+    return ResponseEntity.status(HttpStatus.CONFLICT).body(recusa);
   }
 }

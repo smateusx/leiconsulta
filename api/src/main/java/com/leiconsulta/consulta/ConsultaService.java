@@ -241,6 +241,22 @@ public class ConsultaService {
     return parecida ? "revisar" : "livre";
   }
 
+  public boolean deveRecusar(ConsultaResponse consulta) {
+    if (consulta == null) {
+      return false;
+    }
+    if ("nao_protocolar".equals(consulta.getParecer()) || "revisar".equals(consulta.getParecer())) {
+      return true;
+    }
+    if (consulta.getResultados() == null) {
+      return false;
+    }
+    return consulta.getResultados().stream().anyMatch(item ->
+        "igual".equals(item.getNivel())
+            || "parecida".equals(item.getNivel())
+            || item.getScore() >= 0.15);
+  }
+
   static MatchDto toMatch(Lei lei, double score, String query) {
     MatchDto item = new MatchDto();
     item.setId(lei.getId());
@@ -254,7 +270,7 @@ public class ConsultaService {
     item.setScore(Math.round(score * 1000.0) / 1000.0);
     if (score >= 0.72) {
       item.setNivel("igual");
-    } else if (score >= 0.22) {
+    } else if (score >= 0.15) {
       item.setNivel("parecida");
     } else {
       item.setNivel("relacionada");

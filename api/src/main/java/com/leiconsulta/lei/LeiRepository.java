@@ -7,4 +7,8 @@ public interface LeiRepository extends JpaRepository<Lei, Long> {
   List<Lei> findByMunicipioIgnoreCaseOrderByAnoDesc(String municipio);
 
   List<Lei> findAllByOrderByAnoDescTituloAsc();
+
+  boolean existsByMunicipioIgnoreCaseAndTituloIgnoreCase(String municipio, String titulo);
+
+  boolean existsByMunicipioIgnoreCaseAndNumeroIgnoreCase(String municipio, String numero);
 }
