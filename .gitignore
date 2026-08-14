@@ -3,6 +3,7 @@ target/
 *.iml
 api/data/*.db
 api/data/*.db-journal
+api/data/backups/
 node_modules/
 dist/
 .venv/

@@ -38,9 +38,9 @@
   font-family: "Segoe UI", Tahoma, sans-serif;
 }
 
-.nav a.active,
-.nav a:hover {
-  color: var(--ink);
+.nav-sair {
+  margin-left: 0.4rem;
+  font-family: "Segoe UI", Tahoma, sans-serif;
 }
 
 .menu-toggle {

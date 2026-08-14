@@ -51,9 +51,9 @@ Isso não substitui a consultoria jurídica da Câmara. É um **filtro de duplic
 
 ## 6. Escopo do piloto
 
-**Dentro:** Cachoeira/BA como município de exemplo; cadastro de leis; consulta por similaridade; parecer; histórico; impressão/download; PDF.
+**Dentro:** Cachoeira/BA como município de exemplo; cadastro de leis; consulta por similaridade; parecer; histórico; impressão/download; PDF; senha compartilhada do gabinete; cópia automática do SQLite; ligar com um atalho no Windows.
 
-**Fora (agora):** login, papéis de permissão, OCR de PDF escaneado, integração com o Diário Oficial, validade jurídica do parecer, hospedagem pública, app mobile.
+**Fora (agora):** papéis de permissão por pessoa, OCR de PDF escaneado, integração com o Diário Oficial, validade jurídica do parecer, hospedagem pública, app mobile.
 
 ## 7. Modelo (negócio, não financeiro)
 

@@ -5,6 +5,10 @@ import Logo from "./Logo.jsx";
 const API = import.meta.env.VITE_API_URL || "";
 const MAX_ARQUIVO_BYTES = 5 * 1024 * 1024;
 
+function apiFetch(url, opts = {}) {
+  return fetch(url, { credentials: "include", ...opts });
+}
+
 const ROUTES = {
   "/": "Início",
   "/consultar": "Consultar",
@@ -47,6 +51,10 @@ export default function App() {
   const [apiUp, setApiUp] = useState(null);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const [acesso, setAcesso] = useState({ precisaSenha: false, logado: true });
+  const [senha, setSenha] = useState("");
+  const [loginErro, setLoginErro] = useState("");
+  const [entrando, setEntrando] = useState(false);
 
   function go(to) {
     const next = to.replace(/\/+$/, "") || "/";
@@ -59,10 +67,53 @@ export default function App() {
   }
 
   async function load() {
-    const listRes = await fetch(`${API}/api/leis`);
+    const accRes = await apiFetch(`${API}/api/acesso`);
+    const acc = accRes.ok ? await accRes.json() : { precisaSenha: false, logado: true };
+    setAcesso(acc);
+    if (acc.precisaSenha && !acc.logado) {
+      setApiUp(true);
+      setLeis([]);
+      return;
+    }
+    const listRes = await apiFetch(`${API}/api/leis`);
+    if (listRes.status === 401) {
+      setAcesso({ precisaSenha: true, logado: false });
+      setApiUp(true);
+      return;
+    }
     if (!listRes.ok) throw new Error("api");
     setLeis(await listRes.json());
     setApiUp(true);
+  }
+
+  async function entrar(e) {
+    e.preventDefault();
+    setLoginErro("");
+    setEntrando(true);
+    try {
+      const res = await apiFetch(`${API}/api/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ senha }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setLoginErro(data.error || "Senha incorreta.");
+        return;
+      }
+      setSenha("");
+      await load();
+    } catch {
+      setLoginErro("Não foi possível entrar. Confira se o sistema está ligado.");
+    } finally {
+      setEntrando(false);
+    }
+  }
+
+  async function sair() {
+    await apiFetch(`${API}/api/sair`, { method: "POST" });
+    setAcesso({ precisaSenha: true, logado: false });
+    setLeis([]);
   }
 
   useEffect(() => {
@@ -117,6 +168,11 @@ export default function App() {
               {label}
             </a>
           ))}
+          {acesso.precisaSenha && acesso.logado && (
+            <button type="button" className="linkish nav-sair" onClick={sair}>
+              Sair
+            </button>
+          )}
         </nav>
       </header>
 
@@ -129,6 +185,32 @@ export default function App() {
         {apiUp === false && (
           <p className="msg error">{error}</p>
         )}
+        {acesso.precisaSenha && !acesso.logado ? (
+          <section className="card">
+            <h1 className="page-title">Acesso do gabinete</h1>
+            <p className="hint">
+              Digite a senha compartilhada. A senha inicial é <strong>Cachoeira2026</strong>.
+              Troque em <code>application.properties</code> antes de usar de verdade.
+            </p>
+            <form onSubmit={entrar}>
+              <label>
+                Senha
+                <input
+                  type="password"
+                  value={senha}
+                  onChange={(e) => setSenha(e.target.value)}
+                  autoComplete="current-password"
+                  required
+                />
+              </label>
+              {loginErro && <p className="msg error">{loginErro}</p>}
+              <button type="submit" disabled={entrando}>
+                {entrando ? "Entrando…" : "Entrar"}
+              </button>
+            </form>
+          </section>
+        ) : (
+          <>
         {page === "/" && <Home go={go} leis={leis} />}
         {page === "/consultar" && (
           <Consultar onError={setError} error={error} go={go} />
@@ -148,7 +230,7 @@ export default function App() {
             onDelete={async (lei) => {
               const ok = window.confirm(`Apagar do acervo?\n\n${lei.titulo}${lei.numero ? ` (Lei nº ${lei.numero})` : ""}`);
               if (!ok) return;
-              const res = await fetch(`${API}/api/leis/${lei.id}`, { method: "DELETE" });
+              const res = await apiFetch(`${API}/api/leis/${lei.id}`, { method: "DELETE" });
               const data = await res.json().catch(() => ({}));
               if (!res.ok) {
                 setError(data.error || "Não foi possível apagar a lei.");
@@ -172,6 +254,8 @@ export default function App() {
             onError={setError}
             go={go}
           />
+        )}
+          </>
         )}
       </main>
       <footer className="site-footer no-print">
@@ -198,7 +282,7 @@ function Home({ go, leis = [] }) {
     .map((ano) => ({ ano, qtd: leis.filter((lei) => lei.ano === ano).length }));
 
   useEffect(() => {
-    fetch(`${API}/api/consultas`)
+    apiFetch(`${API}/api/consultas`)
       .then((res) => (res.ok ? res.json() : []))
       .then((itens) => {
         const list = Array.isArray(itens) ? itens : [];
@@ -529,7 +613,7 @@ async function lerArquivo(file) {
   }
   const body = new FormData();
   body.append("arquivo", file);
-  const res = await fetch(`${API}/api/extrair`, { method: "POST", body });
+  const res = await apiFetch(`${API}/api/extrair`, { method: "POST", body });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
     throw new Error(data.error || "Não foi possível ler o arquivo. Use .txt ou .pdf de até 5 MB.");
@@ -592,7 +676,7 @@ function Consultar({ onError, error, go }) {
     setResult(null);
     setAberto(null);
     try {
-      const res = await fetch(`${API}/api/consultar`, {
+      const res = await apiFetch(`${API}/api/consultar`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -924,7 +1008,7 @@ function Acervo({ leis, error, notice, onDelete, onSaved, go }) {
   async function salvarEdicao(e) {
     e.preventDefault();
     setErroEdicao("");
-    const consulta = await fetch(`${API}/api/consultar`, {
+    const consulta = await apiFetch(`${API}/api/consultar`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -940,7 +1024,7 @@ function Acervo({ leis, error, notice, onDelete, onSaved, go }) {
       setErroEdicao(motivoNaoGuardar({ ...checagem, resultados: outros }));
       return;
     }
-    const res = await fetch(`${API}/api/leis/${editando.id}`, {
+    const res = await apiFetch(`${API}/api/leis/${editando.id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -1054,7 +1138,7 @@ function Acervo({ leis, error, notice, onDelete, onSaved, go }) {
                     ignoradas += 1;
                     continue;
                   }
-                  const res = await fetch(`${API}/api/leis`, {
+                  const res = await apiFetch(`${API}/api/leis`, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
@@ -1294,7 +1378,7 @@ function Historico({ go }) {
       setFiltro(parecerPendente);
       sessionStorage.removeItem("leiconsulta.historicoParecer");
     }
-    fetch(`${API}/api/consultas`)
+    apiFetch(`${API}/api/consultas`)
       .then((res) => {
         if (!res.ok) throw new Error("api");
         return res.json();
@@ -1315,7 +1399,7 @@ function Historico({ go }) {
     if (!/^LC-\d{4}-\d{4}$/.test(codigo)) return;
     if (itens.some((item) => String(item.codigo || "").toUpperCase() === codigo)) return;
     let cancelado = false;
-    fetch(`${API}/api/consultas/${encodeURIComponent(codigo)}`)
+    apiFetch(`${API}/api/consultas/${encodeURIComponent(codigo)}`)
       .then((res) => (res.ok ? res.json() : null))
       .then((item) => {
         if (cancelado || !item?.id) {
@@ -1518,7 +1602,7 @@ function Historico({ go }) {
                     `Apagar esta consulta do histórico?\n\n${item.codigo || ""}`
                   );
                   if (!ok) return;
-                  const res = await fetch(
+                  const res = await apiFetch(
                     `${API}/api/consultas/${encodeURIComponent(item.codigo)}`,
                     { method: "DELETE" }
                   );
@@ -1579,10 +1663,18 @@ function Ajuda({ go }) {
         para apagar uma consulta se o rascunho não deve ficar guardado. Não é parecer
         jurídico da Câmara.
       </p>
+      <h2 className="sub">Senha e cópia de segurança</h2>
+      <p className="hint">
+        A senha inicial do gabinete é <strong>Cachoeira2026</strong>. Troque em
+        <code> api/src/main/resources/application.properties</code>. Para ligar o sistema no
+        Windows, use <strong>Ligar-LeiConsulta.bat</strong>. A cada ligar, o acervo é copiado
+        para <code>api/data/backups</code>. Manual: <code>docs/uso-no-gabinete.md</code>.
+      </p>
       <h2 className="sub">Arquivo</h2>
       <p className="hint">
         Formatos aceitos: <strong>.txt</strong> e <strong>.pdf</strong> (com texto que dá para
-        selecionar). Tamanho máximo: <strong>5 MB</strong>. PDF só de imagem (escaneado) não entra.
+        selecionar). Tamanho máximo: <strong>5 MB</strong>. PDF só de imagem (escaneado) não entra:
+        peça a versão em texto ou converta antes.
       </p>
       <button type="button" onClick={() => go("/consultar")}>
         Ir para consultar
@@ -1655,7 +1747,7 @@ function Nova({ leis = [], error, onSaved, onError, go }) {
     setBloqueio(null);
     setLoading(true);
     try {
-      const consulta = await fetch(`${API}/api/consultar`, {
+      const consulta = await apiFetch(`${API}/api/consultar`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -1675,7 +1767,7 @@ function Nova({ leis = [], error, onSaved, onError, go }) {
         return;
       }
 
-      const res = await fetch(`${API}/api/leis`, {
+      const res = await apiFetch(`${API}/api/leis`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

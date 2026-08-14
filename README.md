@@ -53,14 +53,16 @@ npm run dev
 
 Abra http://localhost:5173
 
-No Windows, para abrir os três serviços de uma vez (três janelas):
+No Windows, para uso no gabinete: dois cliques em `Ligar-LeiConsulta.bat` (sobe os três serviços, espera e abre o navegador). Senha inicial: **Cachoeira2026** (troque em `api/src/main/resources/application.properties`). Manual: `docs/uso-no-gabinete.md`.
+
+Ou, na mão:
 
 ```powershell
 cd leiconsulta
 powershell -File .\iniciar.ps1
 ```
 
-Se o Python estiver desligado, o Java ainda consulta (comparação mais simples por palavras). PDF e .txt (até 5 MB) são lidos pelo Java.
+Se o Python estiver desligado, o Java ainda consulta (comparação mais simples por palavras). PDF e .txt (até 5 MB) são lidos pelo Java. A cada ligar da API, o SQLite é copiado para `api/data/backups/`.
 
 Testes das regras de parecer (na pasta `api`):
 
@@ -70,6 +72,9 @@ Testes das regras de parecer (na pasta `api`):
 
 ## API
 
+- `GET /api/acesso` → `{ precisaSenha, logado }`
+- `POST /api/login` `{ "senha": "..." }` (cookie de sessão)
+- `POST /api/sair`
 - `GET /api/health`
 - `GET /api/leis`
 - `GET /api/leis/{id}`

@@ -6,7 +6,7 @@
 
 ## 1. Atores do sistema
 
-- **Usuário de gabinete** (vereador, deputado ou assessoria): único ator nesta versão. Não há login.
+- **Usuário de gabinete** (vereador, deputado ou assessoria): senha compartilhada nesta versão.
 
 ## 2. Requisitos funcionais
 
