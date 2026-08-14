@@ -355,6 +355,7 @@ button.recente span {
 .painel button:hover {
   border-color: var(--ink);
   background: var(--hover);
+  color: var(--ink);
 }
 
 .painel strong {
@@ -529,6 +530,7 @@ button {
 button:hover:not(:disabled) {
   background: var(--accent-hover);
   border-color: var(--accent-hover);
+  color: #fff;
 }
 
 button:disabled {
@@ -559,6 +561,19 @@ button.danger:hover:not(:disabled) {
   background: #f4ecec;
   border-color: var(--danger);
   color: var(--danger);
+}
+
+.painel button:hover:not(:disabled),
+button.recente:hover:not(:disabled),
+.barra-row:hover:not(:disabled) {
+  background: var(--hover);
+  border-color: var(--ink);
+  color: var(--ink);
+}
+
+.painel button:hover:not(:disabled) span,
+button.recente:hover:not(:disabled) span {
+  color: var(--muted);
 }
 
 .msg {
