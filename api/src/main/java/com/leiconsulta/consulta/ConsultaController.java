@@ -30,7 +30,7 @@ public class ConsultaController {
 
   @PostMapping("/consultar")
   public ConsultaResponse consultar(@Valid @RequestBody ConsultaRequest body) {
-    return consultas.consultar(body.getTexto().trim(), body.getMunicipio());
+    return consultas.consultar(body.getTexto().trim(), body.getMunicipio(), body.getExcluirId());
   }
 
   @GetMapping("/consultas")

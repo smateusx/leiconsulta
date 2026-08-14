@@ -59,6 +59,7 @@
 | RF45 | Depois da consulta, guardar a proposta ou abrir a lei encontrada | Feito |
 | RF46 | Avisar na ficha se o número ou o título já existe no município | Feito |
 | RF47 | Destacar e abrir o texto da lei encontrada no acervo | Feito |
+| RF48 | No acervo, consultar se há outra lei parecida (sem comparar a lei consigo mesma) | Feito |
 
 ## 3. Requisitos não funcionais
 

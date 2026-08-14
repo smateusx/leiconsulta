@@ -554,10 +554,12 @@ function Consultar({ onError, error, go }) {
   const [result, setResult] = useState(null);
   const [aberto, setAberto] = useState(null);
   const [copiado, setCopiado] = useState("");
+  const [excluirId, setExcluirId] = useState(null);
 
   useEffect(() => {
     const rascunho = sessionStorage.getItem("leiconsulta.rascunho");
     const mun = sessionStorage.getItem("leiconsulta.municipio");
+    const excluir = sessionStorage.getItem("leiconsulta.excluirId");
     if (rascunho) {
       setTexto(rascunho);
       sessionStorage.removeItem("leiconsulta.rascunho");
@@ -565,6 +567,10 @@ function Consultar({ onError, error, go }) {
     if (mun) {
       setMunicipio(mun);
       sessionStorage.removeItem("leiconsulta.municipio");
+    }
+    if (excluir) {
+      setExcluirId(Number(excluir));
+      sessionStorage.removeItem("leiconsulta.excluirId");
     }
   }, []);
 
@@ -589,7 +595,11 @@ function Consultar({ onError, error, go }) {
       const res = await fetch(`${API}/api/consultar`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ texto, municipio }),
+        body: JSON.stringify({
+          texto,
+          municipio,
+          ...(excluirId ? { excluirId } : {}),
+        }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -616,6 +626,9 @@ function Consultar({ onError, error, go }) {
       <h1 className="page-title">Consultar proposta</h1>
       <p className="hint">
         Cole o rascunho ou envie um arquivo. Aceito só .txt e .pdf (texto selecionável), até 5 MB.
+        {excluirId
+          ? " Esta consulta ignora a lei que você abriu no acervo, para achar outra parecida."
+          : ""}
       </p>
       <form onSubmit={onSubmit} className="no-print">
         <label htmlFor="arquivo">Arquivo (opcional) — .txt ou .pdf, até 5 MB</label>
@@ -682,6 +695,7 @@ function Consultar({ onError, error, go }) {
               setTexto("");
               setArquivoNome("");
               setResult(null);
+              setExcluirId(null);
               onError("");
             }}
           >
@@ -1232,6 +1246,21 @@ function Acervo({ leis, error, notice, onDelete, onSaved, go }) {
               >
                 Imprimir
               </button>
+              <button
+                className="ghost small"
+                type="button"
+                onClick={() => {
+                  sessionStorage.setItem(
+                    "leiconsulta.rascunho",
+                    `${lei.titulo} ${lei.ementa} ${lei.texto}`
+                  );
+                  sessionStorage.setItem("leiconsulta.municipio", lei.municipio);
+                  sessionStorage.setItem("leiconsulta.excluirId", String(lei.id));
+                  go("/consultar");
+                }}
+              >
+                Há outra parecida?
+              </button>
               <button className="danger" type="button" onClick={() => onDelete(lei)}>
                 Apagar
               </button>
@@ -1539,7 +1568,8 @@ function Ajuda({ go }) {
       <p className="hint">
         Na tela inicial, clique nos números (leis, consultas, já existiam, para revisar)
         ou em um ano para ir direto ao acervo ou ao histórico. Dá para ordenar, limpar os
-        filtros, copiar a ementa ou o texto, imprimir uma lei, baixar o texto e guardar uma
+        filtros, copiar a ementa ou o texto, imprimir uma lei, ver se há outra parecida,
+        baixar o texto e guardar uma
         <strong>cópia de segurança</strong>. Restaurar essa cópia pede confirmação.
       </p>
       <h2 className="sub">Código da consulta</h2>

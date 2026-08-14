@@ -11,6 +11,8 @@ public class ConsultaRequest {
   @Size(max = 120)
   private String municipio;
 
+  private Long excluirId;
+
   public String getTexto() {
     return texto;
   }
@@ -25,5 +27,13 @@ public class ConsultaRequest {
 
   public void setMunicipio(String municipio) {
     this.municipio = municipio;
+  }
+
+  public Long getExcluirId() {
+    return excluirId;
+  }
+
+  public void setExcluirId(Long excluirId) {
+    this.excluirId = excluirId;
   }
 }

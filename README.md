@@ -75,7 +75,7 @@ Testes das regras de parecer (na pasta `api`):
 - `GET /api/leis/{id}`
 - `PUT /api/leis/{id}`
 - `DELETE /api/leis/{id}`
-- `POST /api/consultar` `{ "texto": "...", "municipio": "opcional" }` → `parecer` + `codigo` (ex.: `LC-2026-0001`)
+- `POST /api/consultar` `{ "texto": "...", "municipio": "opcional", "excluirId": "opcional" }` → `parecer` + `codigo` (ex.: `LC-2026-0001`)
 - `GET /api/consultas`
 - `GET /api/consultas/{codigo}`
 - `DELETE /api/consultas/{codigo}`
