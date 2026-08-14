@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import "./App.css";
 import Logo from "./Logo.jsx";
 
@@ -42,6 +42,35 @@ const NIVEL = {
 function currentPath() {
   const path = window.location.pathname.replace(/\/+$/, "") || "/";
   return ROUTES[path] ? path : "/";
+}
+
+function Alerta({ children }) {
+  if (!children) return null;
+  return (
+    <p className="msg error" role="alert">
+      {children}{" "}
+      <span className="hint-inline">Se o problema continuar, abra Ajuda.</span>
+    </p>
+  );
+}
+
+function AvisoOk({ children }) {
+  if (!children) return null;
+  return (
+    <p className="msg ok" role="status" aria-live="polite">
+      {children}
+    </p>
+  );
+}
+
+function Voltar({ go, para = "/", rotulo = "Voltar ao início" }) {
+  return (
+    <p className="crumb no-print">
+      <button type="button" className="linkish" onClick={() => go(para)}>
+        ← {rotulo}
+      </button>
+    </p>
+  );
 }
 
 export default function App() {
@@ -111,6 +140,8 @@ export default function App() {
   }
 
   async function sair() {
+    const ok = window.confirm("Sair do LeiConsulta neste computador?");
+    if (!ok) return;
     await apiFetch(`${API}/api/sair`, { method: "POST" });
     setAcesso({ precisaSenha: true, logado: false });
     setLeis([]);
@@ -121,6 +152,18 @@ export default function App() {
     window.addEventListener("popstate", onPop);
     return () => window.removeEventListener("popstate", onPop);
   }, []);
+
+  useEffect(() => {
+    function onKey(e) {
+      if (e.key === "Escape") setMenuOpen(false);
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
+  useEffect(() => {
+    document.title = `${ROUTES[page] || "Início"} · LeiConsulta`;
+  }, [page]);
 
   useEffect(() => {
     load().catch(() => {
@@ -135,6 +178,9 @@ export default function App() {
 
   return (
     <div className="shell">
+      <a className="skip" href="#conteudo">
+        Ir para o conteúdo
+      </a>
       <header className="site-header no-print">
         <a
           className="brand"
@@ -147,19 +193,25 @@ export default function App() {
           <Logo />
           LeiConsulta
         </a>
+        <p className="status-pill" role="status" aria-live="polite">
+          {apiUp === false ? "Sem conexão" : apiUp ? "Sistema ligado" : "Ligando…"}
+        </p>
         <button
           className="menu-toggle"
           type="button"
+          aria-expanded={menuOpen}
+          aria-controls="menu-principal"
           onClick={() => setMenuOpen((open) => !open)}
         >
-          {menuOpen ? "Fechar" : "Menu"}
+          {menuOpen ? "Fechar menu" : "Menu"}
         </button>
-        <nav className={menuOpen ? "nav open" : "nav"}>
+        <nav id="menu-principal" className={menuOpen ? "nav open" : "nav"} aria-label="Principal">
           {Object.entries(ROUTES).map(([path, label]) => (
             <a
               key={path}
               href={path}
               className={page === path ? "active" : ""}
+              aria-current={page === path ? "page" : undefined}
               onClick={(e) => {
                 e.preventDefault();
                 go(path);
@@ -176,35 +228,55 @@ export default function App() {
         </nav>
       </header>
 
-      <main className="page">
+      <main className="page" id="conteudo" tabIndex={-1}>
         <datalist id="municipios-acervo">
           {municipiosAcervo.map((item) => (
             <option key={item} value={item} />
           ))}
         </datalist>
         {apiUp === false && (
-          <p className="msg error">{error}</p>
+          <div className="banner-offline no-print">
+            <Alerta>{error}</Alerta>
+            <button
+              type="button"
+              className="ghost"
+              onClick={() => {
+                setError("");
+                load().catch(() => {
+                  setApiUp(false);
+                  setError("Ainda sem conexão. Confira se o LeiConsulta está ligado.");
+                });
+              }}
+            >
+              Tentar de novo
+            </button>
+          </div>
         )}
         {acesso.precisaSenha && !acesso.logado ? (
           <section className="card">
             <h1 className="page-title">Acesso do gabinete</h1>
-            <p className="hint">
-              Digite a senha compartilhada. A senha inicial é <strong>Cachoeira2026</strong>.
-              Troque em <code>application.properties</code> antes de usar de verdade.
+            <p className="hint" id="login-dica">
+              Use a senha compartilhada da equipe. Se for o primeiro acesso neste
+              computador, a senha inicial está na página Ajuda.
             </p>
             <form onSubmit={entrar}>
-              <label>
-                Senha
-                <input
-                  type="password"
-                  value={senha}
-                  onChange={(e) => setSenha(e.target.value)}
-                  autoComplete="current-password"
-                  required
-                />
-              </label>
-              {loginErro && <p className="msg error">{loginErro}</p>}
-              <button type="submit" disabled={entrando}>
+              <label htmlFor="senha-gabinete">Senha</label>
+              <input
+                id="senha-gabinete"
+                type="password"
+                value={senha}
+                onChange={(e) => setSenha(e.target.value)}
+                autoComplete="current-password"
+                required
+                aria-invalid={Boolean(loginErro)}
+                aria-describedby={loginErro ? "login-erro login-dica" : "login-dica"}
+              />
+              {loginErro && (
+                <p className="msg error" id="login-erro" role="alert">
+                  {loginErro} Confira a senha e tente outra vez.
+                </p>
+              )}
+              <button type="submit" disabled={entrando} aria-busy={entrando}>
                 {entrando ? "Entrando…" : "Entrar"}
               </button>
             </form>
@@ -366,6 +438,13 @@ function Home({ go, leis = [] }) {
         <li>Leia o parecer e os trechos em comum</li>
         <li>Protocola só se o acervo estiver livre. Cada consulta ganha um código (LC-2026-0001).</li>
       </ol>
+      <p className="hint">
+        Números abaixo abrem o acervo ou o histórico. Em dúvida, use{" "}
+        <button type="button" className="linkish" onClick={() => go("/ajuda")}>
+          Como usar
+        </button>
+        .
+      </p>
       <div className="home-actions">
         <button type="button" onClick={() => go("/consultar")}>
           Consultar proposta
@@ -639,6 +718,7 @@ function Consultar({ onError, error, go }) {
   const [aberto, setAberto] = useState(null);
   const [copiado, setCopiado] = useState("");
   const [excluirId, setExcluirId] = useState(null);
+  const abortRef = useRef(null);
 
   useEffect(() => {
     const rascunho = sessionStorage.getItem("leiconsulta.rascunho");
@@ -675,10 +755,14 @@ function Consultar({ onError, error, go }) {
     setLoading(true);
     setResult(null);
     setAberto(null);
+    abortRef.current?.abort();
+    const ctrl = new AbortController();
+    abortRef.current = ctrl;
     try {
       const res = await apiFetch(`${API}/api/consultar`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        signal: ctrl.signal,
         body: JSON.stringify({
           texto,
           municipio,
@@ -687,12 +771,16 @@ function Consultar({ onError, error, go }) {
       });
       const data = await res.json();
       if (!res.ok) {
-        onError(data.error || "Não foi possível consultar.");
+        onError(data.error || "Não foi possível consultar. Tente de novo.");
         return;
       }
       setResult(data);
-    } catch {
-      onError("Não foi possível falar com o servidor.");
+    } catch (err) {
+      if (err?.name === "AbortError") {
+        onError("Consulta cancelada.");
+        return;
+      }
+      onError("Não foi possível falar com o servidor. Confira se o sistema está ligado e tente de novo.");
     } finally {
       setLoading(false);
     }
@@ -707,9 +795,11 @@ function Consultar({ onError, error, go }) {
 
   return (
     <section className="card">
+      <Voltar go={go} />
       <h1 className="page-title">Consultar proposta</h1>
       <p className="hint">
         Cole o rascunho ou envie um arquivo. Aceito só .txt e .pdf (texto selecionável), até 5 MB.
+        Atalho: Ctrl+Enter para consultar.{" "}
         {excluirId
           ? " Esta consulta ignora a lei que você abriu no acervo, para achar outra parecida."
           : ""}
@@ -754,12 +844,30 @@ function Consultar({ onError, error, go }) {
           placeholder="Proíbe barulho depois das 22 horas no perímetro urbano..."
           required
           minLength={8}
+          aria-describedby="rascunho-conta"
+          onKeyDown={(e) => {
+            if ((e.ctrlKey || e.metaKey) && e.key === "Enter" && texto.trim().length >= 8 && !loading) {
+              e.currentTarget.form?.requestSubmit();
+            }
+          }}
         />
-        <p className="hint">{texto.trim().length} caracteres</p>
+        <p className="hint" id="rascunho-conta">
+          {texto.trim().length} caracteres
+          {texto.trim().length > 0 && texto.trim().length < 8 ? " — faltam caracteres para consultar." : ""}
+        </p>
         <div className="form-actions">
-          <button type="submit" disabled={loading || texto.trim().length < 8}>
-            {loading ? "Comparando…" : "Ver se já existe"}
+          <button type="submit" disabled={loading || texto.trim().length < 8} aria-busy={loading}>
+            {loading ? "Comparando com o acervo…" : "Ver se já existe"}
           </button>
+          {loading && (
+            <button
+              type="button"
+              className="ghost"
+              onClick={() => abortRef.current?.abort()}
+            >
+              Cancelar consulta
+            </button>
+          )}
           <button
             type="button"
             className="ghost"
@@ -803,9 +911,9 @@ function Consultar({ onError, error, go }) {
           )}
         </div>
       </form>
-      {error && <p className="msg error">{error}</p>}
+      {error && <Alerta>{error}</Alerta>}
       {result && parecer && (
-        <div className={`parecer ${result.parecer || "livre"}`} id="parecer-print">
+        <div className={`parecer ${result.parecer || "livre"}`} id="parecer-print" role="status" aria-live="polite">
           <p className="print-only kicker">LeiConsulta · Cachoeira/BA · parecer de consulta</p>
           {result.codigo && <p className="codigo">Consulta {result.codigo}</p>}
           <strong>{parecer.titulo}</strong>
@@ -1047,7 +1155,11 @@ function Acervo({ leis, error, notice, onDelete, onSaved, go }) {
 
   return (
     <section className="card">
+      <Voltar go={go} />
       <h1 className="page-title">Acervo</h1>
+      <p className="hint">
+        Leis já cadastradas. Filtros e busca ficam visíveis acima da lista. Apagar pede confirmação.
+      </p>
       <div className="filtros quatro">
         <div>
           <label htmlFor="busca">Buscar</label>
@@ -1180,9 +1292,9 @@ function Acervo({ leis, error, notice, onDelete, onSaved, go }) {
           </button>
         )}
       </div>
-      {erroEdicao && !editando && <p className="msg error">{erroEdicao}</p>}
-      {error && <p className="msg error">{error}</p>}
-      {notice && <p className="msg ok">{notice}</p>}
+      {erroEdicao && !editando && <Alerta>{erroEdicao}</Alerta>}
+      {error && <Alerta>{error}</Alerta>}
+      <AvisoOk>{notice}</AvisoOk>
       {leis.length > 0 && (
         <p className="hint">
           {filtradas.length === leis.length
@@ -1193,7 +1305,7 @@ function Acervo({ leis, error, notice, onDelete, onSaved, go }) {
       {!filtradas.length && (
         <p className="hint">
           {leis.length ? (
-            "Nenhuma lei com esse termo."
+            "Nenhuma lei com esse termo. Limpe a busca ou tente outra palavra."
           ) : (
             <>
               Ainda não há leis cadastradas.{" "}
@@ -1260,10 +1372,10 @@ function Acervo({ leis, error, notice, onDelete, onSaved, go }) {
                     onChange={(e) => setEditando({ ...editando, texto: e.target.value })}
                     required
                   />
-                  {erroEdicao && <p className="msg error">{erroEdicao}</p>}
+                  {erroEdicao && <Alerta>{erroEdicao}</Alerta>}
                   <div className="form-actions">
                     <button type="submit">Guardar alteração</button>
-                    <button type="button" className="ghost" onClick={() => setEditando(null)}>
+                    <button type="button" className="ghost" onClick={() => { setEditando(null); setErroEdicao(""); }}>
                       Cancelar
                     </button>
                   </div>
@@ -1431,10 +1543,16 @@ function Historico({ go }) {
 
   return (
     <section className="card">
+      <Voltar go={go} />
       <h1 className="page-title">Histórico</h1>
       <p className="hint">
         Cada consulta ganha um código. Serve para mostrar que o acervo foi checado antes de protocolar.
       </p>
+      {!carregou && (
+        <p className="status" role="status">
+          Carregando histórico…
+        </p>
+      )}
       <label htmlFor="busca-codigo">Buscar</label>
       <input
         id="busca-codigo"
@@ -1493,7 +1611,34 @@ function Historico({ go }) {
           </button>
         </div>
       )}
-      {erro && <p className="msg error">{erro}</p>}
+      {erro && (
+        <div>
+          <Alerta>{erro}</Alerta>
+          <button
+            type="button"
+            className="ghost"
+            onClick={() => {
+              setErro("");
+              setCarregou(false);
+              apiFetch(`${API}/api/consultas`)
+                .then((res) => {
+                  if (!res.ok) throw new Error("api");
+                  return res.json();
+                })
+                .then((data) => {
+                  setItens(data);
+                  setCarregou(true);
+                })
+                .catch(() => {
+                  setErro("Não foi possível carregar o histórico. Tente de novo.");
+                  setCarregou(true);
+                });
+            }}
+          >
+            Tentar de novo
+          </button>
+        </div>
+      )}
       {itens.length > 0 && (
         <p className="hint">
           {filtradas.length === itens.length
@@ -1504,7 +1649,7 @@ function Historico({ go }) {
       {!filtradas.length && !erro && (
         <p className="hint">
           {itens.length ? (
-            "Nenhuma consulta com esse filtro."
+            "Nenhuma consulta com esse filtro. Limpe o filtro para ver todas."
           ) : (
             <>
               Ainda não há consultas gravadas.{" "}
@@ -1627,10 +1772,44 @@ function Historico({ go }) {
 function Ajuda({ go }) {
   return (
     <section className="card">
+      <Voltar go={go} />
       <h1 className="page-title">Como usar</h1>
       <p className="hint">
         O LeiConsulta guarda leis de Cachoeira/BA e compara um rascunho novo com o acervo.
       </p>
+      <h2 className="sub">O que o sistema faz para você não se perder</h2>
+      <ul className="ajuda-list">
+        <li>
+          <strong>Você vê o que está acontecendo.</strong> “Sistema ligado”, “Comparando…”, “Carregando…” e o parecer aparecem na hora.
+        </li>
+        <li>
+          <strong>Fala a língua do gabinete.</strong> Parecer, acervo, protocolar, comprovante — não jargão de programação.
+        </li>
+        <li>
+          <strong>Dá para voltar e cancelar.</strong> Voltar ao início, limpar rascunho, cancelar consulta, cancelar edição, sair com confirmação.
+        </li>
+        <li>
+          <strong>Mesmos botões, mesmos nomes.</strong> Guardar, cancelar, limpar e apagar funcionam igual em todas as telas.
+        </li>
+        <li>
+          <strong>Evita erro grave.</strong> Não guarda lei igual; apagar e restaurar pedem confirmação; senha não fica escrita na tela de entrada.
+        </li>
+        <li>
+          <strong>Mostra em vez de exigir memória.</strong> Municípios do acervo, filtros visíveis, exemplo de rascunho, códigos recentes na inicial.
+        </li>
+        <li>
+          <strong>Atalhos para quem usa todo dia.</strong> Ctrl+Enter consulta; números da inicial abrem acervo e histórico.
+        </li>
+        <li>
+          <strong>Tela limpa.</strong> Só o necessário para consultar, guardar e comprovar.
+        </li>
+        <li>
+          <strong>Erro com o que fazer.</strong> Mensagem em português + “Tentar de novo” ou “Abrir a lei do acervo”.
+        </li>
+        <li>
+          <strong>Ajuda à mão.</strong> Esta página, dicas em cada tela e o rodapé “Como usar”.
+        </li>
+      </ul>
       <h2 className="sub">Os três pareceres</h2>
       <ul className="ajuda-list">
         <li>
@@ -1665,10 +1844,9 @@ function Ajuda({ go }) {
       </p>
       <h2 className="sub">Senha e cópia de segurança</h2>
       <p className="hint">
-        A senha inicial do gabinete é <strong>Cachoeira2026</strong>. Troque em
-        <code> api/src/main/resources/application.properties</code>. Para ligar o sistema no
-        Windows, use <strong>Ligar-LeiConsulta.bat</strong>. A cada ligar, o acervo é copiado
-        para <code>api/data/backups</code>. Manual: <code>docs/uso-no-gabinete.md</code>.
+        A senha inicial do gabinete está no manual da equipe: <strong>Cachoeira2026</strong>.
+        Peça ao responsável para trocá-la. Para ligar o sistema no Windows, use
+        <strong> Ligar-LeiConsulta.bat</strong>.
       </p>
       <h2 className="sub">Arquivo</h2>
       <p className="hint">
@@ -1819,16 +1997,19 @@ function Nova({ leis = [], error, onSaved, onError, go }) {
 
   return (
     <section className="card">
+      <Voltar go={go} />
       <h1 className="page-title">Nova lei</h1>
       <p className="hint">
         Antes de guardar, o sistema olha o acervo. Se já existir lei igual ou do mesmo
-        assunto, explica o motivo e não grava.
+        assunto, explica o motivo e não grava. Você pode limpar a ficha a qualquer momento.
       </p>
       <form onSubmit={onSubmit}>
         <label htmlFor="titulo">Título</label>
-        <input id="titulo" value={titulo} onChange={(e) => setTitulo(e.target.value)} required />
+        <input id="titulo" value={titulo} onChange={(e) => setTitulo(e.target.value)} required aria-invalid={jaTemTitulo} aria-describedby={jaTemTitulo ? "erro-titulo" : undefined} />
         {jaTemTitulo && (
-          <p className="msg error">Já existe uma lei com este título neste município.</p>
+          <p className="msg error" role="alert" id="erro-titulo">
+            Já existe uma lei com este título neste município. Mude o título ou abra o acervo.
+          </p>
         )}
         <label htmlFor="numero">Número (opcional)</label>
         <input
@@ -1836,9 +2017,13 @@ function Nova({ leis = [], error, onSaved, onError, go }) {
           value={numero}
           onChange={(e) => setNumero(e.target.value)}
           placeholder="ex.: 1142/2018"
+          aria-invalid={jaTemNumero}
+          aria-describedby={jaTemNumero ? "erro-numero" : undefined}
         />
         {jaTemNumero && (
-          <p className="msg error">Já existe a Lei nº {numero.trim()} neste município.</p>
+          <p className="msg error" role="alert" id="erro-numero">
+            Já existe a Lei nº {numero.trim()} neste município. Não será guardada de novo.
+          </p>
         )}
         <label htmlFor="municipio">Município</label>
         <input
@@ -1875,7 +2060,7 @@ function Nova({ leis = [], error, onSaved, onError, go }) {
         <textarea id="texto" rows="8" value={texto} onChange={(e) => setTexto(e.target.value)} required />
         <p className="hint">{texto.trim().length} caracteres</p>
         <div className="form-actions">
-          <button type="submit" disabled={loading || jaTemNumero || jaTemTitulo}>
+          <button type="submit" disabled={loading || jaTemNumero || jaTemTitulo} aria-busy={loading}>
             {loading ? "Checando o acervo…" : "Guardar no acervo"}
           </button>
           <button
@@ -1931,7 +2116,7 @@ function Nova({ leis = [], error, onSaved, onError, go }) {
           )}
         </div>
       )}
-      {error && <p className="msg error">{error}</p>}
+      {error && <Alerta>{error}</Alerta>}
     </section>
   );
 }
