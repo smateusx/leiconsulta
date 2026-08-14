@@ -47,6 +47,9 @@
 | RF33 | Limpar a ficha de nova lei | Feito |
 | RF34 | Restaurar o acervo a partir da cópia de segurança | Feito |
 | RF35 | Copiar o texto completo da lei e o rascunho da consulta | Feito |
+| RF36 | Apagar consulta do histórico | Feito |
+| RF37 | Ver os últimos comprovantes na tela inicial | Feito |
+| RF38 | Confirmar antes de restaurar a cópia de segurança | Feito |
 
 ## 3. Requisitos não funcionais
 

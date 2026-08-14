@@ -78,4 +78,5 @@ Testes das regras de parecer (na pasta `api`):
 - `POST /api/consultar` `{ "texto": "...", "municipio": "opcional" }` → `parecer` + `codigo` (ex.: `LC-2026-0001`)
 - `GET /api/consultas`
 - `GET /api/consultas/{codigo}`
+- `DELETE /api/consultas/{codigo}`
 - `POST /api/extrair` (multipart `arquivo`: `.txt` ou `.pdf`) → `{ "texto": "..." }`

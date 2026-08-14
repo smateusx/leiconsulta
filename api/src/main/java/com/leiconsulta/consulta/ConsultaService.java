@@ -105,6 +105,12 @@ public class ConsultaService {
         .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Consulta não encontrada."));
   }
 
+  public Map<String, Object> apagar(String codigo) {
+    ConsultaRegistro registro = obter(codigo);
+    registros.delete(registro);
+    return Map.of("message", "deleted", "codigo", registro.getCodigo());
+  }
+
   private ConsultaResponse gravar(ConsultaResponse resposta, String texto, String municipio) {
     ConsultaRegistro registro = new ConsultaRegistro();
     registro.setMunicipio(municipio == null || municipio.isBlank() ? "todos" : municipio.trim());

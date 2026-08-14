@@ -183,7 +183,13 @@ export default function App() {
 
 function Home({ go, leis = [] }) {
   const total = leis.length;
-  const [stats, setStats] = useState({ consultas: 0, bloquear: 0, revisar: 0, livre: 0 });
+  const [stats, setStats] = useState({
+    consultas: 0,
+    bloquear: 0,
+    revisar: 0,
+    livre: 0,
+    recentes: [],
+  });
   const porAno = [...new Set(leis.map((lei) => lei.ano))]
     .sort((a, b) => b - a)
     .map((ano) => ({ ano, qtd: leis.filter((lei) => lei.ano === ano).length }));
@@ -198,6 +204,7 @@ function Home({ go, leis = [] }) {
           bloquear: list.filter((item) => item.parecer === "nao_protocolar").length,
           revisar: list.filter((item) => item.parecer === "revisar").length,
           livre: list.filter((item) => item.parecer === "livre").length,
+          recentes: list.slice(0, 3),
         });
       })
       .catch(() => {});
@@ -265,6 +272,27 @@ function Home({ go, leis = [] }) {
           Histórico
         </button>
       </div>
+      {stats.recentes.length > 0 && (
+        <div className="recentes">
+          <p className="kicker">Últimos comprovantes</p>
+          {stats.recentes.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              className="ghost recente"
+              onClick={() => {
+                sessionStorage.setItem("leiconsulta.abrirCodigo", item.codigo || "");
+                go("/historico");
+              }}
+            >
+              <strong>{item.codigo}</strong>
+              <span>
+                {rotuloParecer(item.parecer)} · {formatarData(item.criadoEm)}
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
       <form
         className="codigo-form"
         onSubmit={(e) => {
@@ -890,6 +918,10 @@ function Acervo({ leis, error, notice, onDelete, onSaved }) {
               const file = e.target.files?.[0];
               e.target.value = "";
               if (!file) return;
+              const ok = window.confirm(
+                "Restaurar esta cópia? Leis novas entram no acervo. As que já existem ficam como estão."
+              );
+              if (!ok) return;
               try {
                 const dados = JSON.parse(await file.text());
                 if (!Array.isArray(dados)) {
@@ -1280,6 +1312,27 @@ function Historico({ go }) {
               >
                 Baixar
               </button>
+              <button
+                className="danger"
+                type="button"
+                onClick={async () => {
+                  const ok = window.confirm(
+                    `Apagar esta consulta do histórico?\n\n${item.codigo || ""}`
+                  );
+                  if (!ok) return;
+                  const res = await fetch(
+                    `${API}/api/consultas/${encodeURIComponent(item.codigo)}`,
+                    { method: "DELETE" }
+                  );
+                  if (!res.ok) {
+                    setErro("Não foi possível apagar a consulta.");
+                    return;
+                  }
+                  setItens((prev) => prev.filter((p) => p.id !== item.id));
+                }}
+              >
+                Apagar
+              </button>
             </div>
             {aberto === item.id && <p className="full-text">{item.texto}</p>}
           </article>
@@ -1492,6 +1545,7 @@ function Nova({ error, onSaved, onError }) {
         <DicaArquivo />
         <label htmlFor="texto">Texto</label>
         <textarea id="texto" rows="8" value={texto} onChange={(e) => setTexto(e.target.value)} required />
+        <p className="hint">{texto.trim().length} caracteres</p>
         <div className="form-actions">
           <button type="submit" disabled={loading}>
             {loading ? "Checando o acervo…" : "Guardar no acervo"}
