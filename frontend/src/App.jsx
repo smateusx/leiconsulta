@@ -140,6 +140,7 @@ export default function App() {
             leis={leis}
             error={error}
             notice={notice}
+            go={go}
             onSaved={async (msg) => {
               setNotice(msg);
               await load();
@@ -601,6 +602,11 @@ function Consultar({ onError, error, go }) {
     }
   }
 
+  useEffect(() => {
+    if (!result) return;
+    document.getElementById("parecer-print")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [result]);
+
   const parecer = result ? PARECER[result.parecer] || PARECER.livre : null;
 
   return (
@@ -822,7 +828,7 @@ function Consultar({ onError, error, go }) {
   );
 }
 
-function Acervo({ leis, error, notice, onDelete, onSaved }) {
+function Acervo({ leis, error, notice, onDelete, onSaved, go }) {
   const [busca, setBusca] = useState("");
   const [ano, setAno] = useState("");
   const [municipio, setMunicipio] = useState("");
@@ -1052,7 +1058,16 @@ function Acervo({ leis, error, notice, onDelete, onSaved }) {
       )}
       {!filtradas.length && (
         <p className="hint">
-          {leis.length ? "Nenhuma lei com esse termo." : "Ainda não há leis cadastradas."}
+          {leis.length ? (
+            "Nenhuma lei com esse termo."
+          ) : (
+            <>
+              Ainda não há leis cadastradas.{" "}
+              <button type="button" className="linkish" onClick={() => go("/nova")}>
+                Cadastrar a primeira lei
+              </button>
+            </>
+          )}
         </p>
       )}
       <div className="list">
@@ -1304,6 +1319,31 @@ function Historico({ go }) {
           </button>
         </div>
       )}
+      {filtradas.length > 0 && (
+        <div className="form-actions">
+          <button
+            type="button"
+            className="ghost"
+            onClick={() => {
+              const linhas = [
+                "LeiConsulta — comprovantes",
+                new Date().toLocaleString("pt-BR"),
+                "",
+                ...filtradas.map(
+                  (item) =>
+                    `${item.codigo || "sem código"} · ${rotuloParecer(item.parecer)} · ${formatarData(item.criadoEm)} · ${item.resumo || ""}`
+                ),
+              ];
+              baixarArquivo(
+                `leiconsulta-comprovantes-${new Date().toISOString().slice(0, 10)}.txt`,
+                `${linhas.join("\n")}\n`
+              );
+            }}
+          >
+            Baixar lista
+          </button>
+        </div>
+      )}
       {erro && <p className="msg error">{erro}</p>}
       {itens.length > 0 && (
         <p className="hint">
@@ -1314,7 +1354,16 @@ function Historico({ go }) {
       )}
       {!filtradas.length && !erro && (
         <p className="hint">
-          {itens.length ? "Nenhuma consulta com esse filtro." : "Ainda não há consultas gravadas."}
+          {itens.length ? (
+            "Nenhuma consulta com esse filtro."
+          ) : (
+            <>
+              Ainda não há consultas gravadas.{" "}
+              <button type="button" className="linkish" onClick={() => go("/consultar")}>
+                Fazer a primeira consulta
+              </button>
+            </>
+          )}
         </p>
       )}
       <div className="list">
@@ -1460,8 +1509,9 @@ function Ajuda({ go }) {
       <h2 className="sub">Código da consulta</h2>
       <p className="hint">
         Cada consulta ganha um código (ex.: LC-2026-0001). Copie, imprima, baixe o parecer
-        ou abra o comprovante na tela inicial. No histórico dá para apagar uma consulta
-        se o rascunho não deve ficar guardado. Não é parecer jurídico da Câmara.
+        ou a lista de comprovantes, ou abra o comprovante na tela inicial. No histórico dá
+        para apagar uma consulta se o rascunho não deve ficar guardado. Não é parecer
+        jurídico da Câmara.
       </p>
       <h2 className="sub">Arquivo</h2>
       <p className="hint">
