@@ -219,22 +219,40 @@ function Home({ go, leis = [] }) {
         parecida, ou se o acervo está livre. Menos papel, menos lei repetida.
       </p>
       <div className="painel">
-        <div>
+        <button type="button" onClick={() => go("/acervo")}>
           <strong>{total}</strong>
           <span>leis no acervo</span>
-        </div>
-        <div>
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            sessionStorage.removeItem("leiconsulta.historicoParecer");
+            go("/historico");
+          }}
+        >
           <strong>{stats.consultas}</strong>
           <span>consultas</span>
-        </div>
-        <div>
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            sessionStorage.setItem("leiconsulta.historicoParecer", "nao_protocolar");
+            go("/historico");
+          }}
+        >
           <strong>{stats.bloquear}</strong>
           <span>já existiam</span>
-        </div>
-        <div>
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            sessionStorage.setItem("leiconsulta.historicoParecer", "revisar");
+            go("/historico");
+          }}
+        >
           <strong>{stats.revisar}</strong>
           <span>para revisar</span>
-        </div>
+        </button>
       </div>
       {porAno.length > 0 && (
         <p className="hint">
@@ -546,6 +564,17 @@ function Consultar({ onError, error, go }) {
       sessionStorage.removeItem("leiconsulta.municipio");
     }
   }, []);
+
+  useEffect(() => {
+    const sujo = texto.trim().length >= 8;
+    function avisar(e) {
+      if (!sujo) return;
+      e.preventDefault();
+      e.returnValue = "";
+    }
+    window.addEventListener("beforeunload", avisar);
+    return () => window.removeEventListener("beforeunload", avisar);
+  }, [texto]);
 
   async function onSubmit(e) {
     e.preventDefault();
@@ -1004,6 +1033,7 @@ function Acervo({ leis, error, notice, onDelete, onSaved }) {
               setBusca("");
               setAno("");
               setMunicipio("");
+              setOrdem("ano-desc");
             }}
           >
             Limpar filtros
@@ -1174,10 +1204,15 @@ function Historico({ go }) {
 
   useEffect(() => {
     const pendente = sessionStorage.getItem("leiconsulta.abrirCodigo");
+    const parecerPendente = sessionStorage.getItem("leiconsulta.historicoParecer");
     if (pendente) {
       setBuscaCodigo(pendente);
       setDestaque(pendente.trim().toUpperCase());
       sessionStorage.removeItem("leiconsulta.abrirCodigo");
+      sessionStorage.removeItem("leiconsulta.historicoParecer");
+    } else if (parecerPendente) {
+      setFiltro(parecerPendente);
+      sessionStorage.removeItem("leiconsulta.historicoParecer");
     }
     fetch(`${API}/api/consultas`)
       .then((res) => {
@@ -1417,9 +1452,10 @@ function Ajuda({ go }) {
       </p>
       <h2 className="sub">Acervo</h2>
       <p className="hint">
-        Na tela inicial, clique em um ano para ver as leis daquele ano. Dá para ordenar,
-        limpar os filtros, copiar a ementa ou o texto, imprimir uma lei, baixar o texto e
-        guardar uma <strong>cópia de segurança</strong>. Restaurar essa cópia pede confirmação.
+        Na tela inicial, clique nos números (leis, consultas, já existiam, para revisar)
+        ou em um ano para ir direto ao acervo ou ao histórico. Dá para ordenar, limpar os
+        filtros, copiar a ementa ou o texto, imprimir uma lei, baixar o texto e guardar uma
+        <strong>cópia de segurança</strong>. Restaurar essa cópia pede confirmação.
       </p>
       <h2 className="sub">Código da consulta</h2>
       <p className="hint">

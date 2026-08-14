@@ -53,6 +53,7 @@
 | RF39 | Ordenar o acervo por ano ou título | Feito |
 | RF40 | Imprimir uma lei do acervo | Feito |
 | RF41 | Copiar o rascunho na tela de consultar | Feito |
+| RF42 | Abrir acervo ou histórico a partir dos números da tela inicial | Feito |
 
 ## 3. Requisitos não funcionais
 

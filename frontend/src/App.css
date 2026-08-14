@@ -173,10 +173,18 @@ button.recente span {
   margin: 1.3rem 0 0.4rem;
 }
 
-.painel div {
+.painel button {
   border: 1px solid var(--line);
   background: var(--paper);
   padding: 0.75rem 0.7rem;
+  margin-top: 0;
+  color: inherit;
+  text-align: left;
+  min-height: 0;
+}
+
+.painel button:hover {
+  border-color: var(--accent);
 }
 
 .painel strong {

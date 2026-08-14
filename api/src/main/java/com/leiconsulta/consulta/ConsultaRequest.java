@@ -4,8 +4,8 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
 public class ConsultaRequest {
-  @NotBlank
-  @Size(max = 50000)
+  @NotBlank(message = "Cole o texto da proposta.")
+  @Size(max = 50000, message = "O texto é longo demais.")
   private String texto;
 
   @Size(max = 120)

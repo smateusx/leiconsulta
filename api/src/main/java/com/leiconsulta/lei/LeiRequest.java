@@ -6,27 +6,27 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
 public class LeiRequest {
-  @NotBlank
-  @Size(max = 200)
+  @NotBlank(message = "Informe o título.")
+  @Size(max = 200, message = "O título é longo demais.")
   private String titulo;
 
-  @Size(max = 40)
+  @Size(max = 40, message = "O número da lei é longo demais.")
   private String numero;
 
-  @NotBlank
-  @Size(max = 120)
+  @NotBlank(message = "Informe o município.")
+  @Size(max = 120, message = "O município é longo demais.")
   private String municipio;
 
-  @Min(1800)
-  @Max(2100)
+  @Min(value = 1800, message = "Informe um ano válido.")
+  @Max(value = 2100, message = "Informe um ano válido.")
   private Integer ano;
 
-  @NotBlank
-  @Size(max = 2000)
+  @NotBlank(message = "Informe a ementa.")
+  @Size(max = 2000, message = "A ementa é longa demais.")
   private String ementa;
 
-  @NotBlank
-  @Size(max = 50000)
+  @NotBlank(message = "Informe o texto da lei.")
+  @Size(max = 50000, message = "O texto é longo demais.")
   private String texto;
 
   public String getTitulo() {
