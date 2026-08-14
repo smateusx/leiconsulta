@@ -10,7 +10,7 @@ function apiFetch(url, opts = {}) {
 }
 
 const ROUTES = {
-  "/": "Início",
+  "/": "Painel",
   "/consultar": "Consultar",
   "/acervo": "Acervo",
   "/historico": "Histórico",
@@ -40,7 +40,8 @@ const NIVEL = {
 };
 
 function currentPath() {
-  const path = window.location.pathname.replace(/\/+$/, "") || "/";
+  const raw = window.location.pathname.replace(/\/+$/, "") || "/";
+  const path = raw === "/dashboard" ? "/" : raw;
   return ROUTES[path] ? path : "/";
 }
 
@@ -63,7 +64,7 @@ function AvisoOk({ children }) {
   );
 }
 
-function Voltar({ go, para = "/", rotulo = "Voltar ao início" }) {
+function Voltar({ go, para = "/", rotulo = "Voltar ao painel" }) {
   return (
     <p className="crumb no-print">
       <button type="button" className="linkish" onClick={() => go(para)}>
@@ -162,7 +163,7 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    document.title = `${ROUTES[page] || "Início"} · LeiConsulta`;
+    document.title = `${ROUTES[page] || "Painel"} · LeiConsulta`;
   }, [page]);
 
   useEffect(() => {
@@ -228,7 +229,7 @@ export default function App() {
         </nav>
       </header>
 
-      <main className="page" id="conteudo" tabIndex={-1}>
+      <main className={`page ${page === "/" ? "page-wide" : ""}`} id="conteudo" tabIndex={-1}>
         <datalist id="municipios-acervo">
           {municipiosAcervo.map((item) => (
             <option key={item} value={item} />
@@ -330,7 +331,7 @@ export default function App() {
           </>
         )}
       </main>
-      <footer className="site-footer no-print">
+      <footer className={`site-footer no-print ${page === "/" ? "page-wide" : ""}`}>
         <p>LeiConsulta · Cachoeira/BA · acervo municipal local</p>
         <button type="button" className="linkish" onClick={() => go("/ajuda")}>
           Como usar
@@ -340,44 +341,92 @@ export default function App() {
   );
 }
 
+function hojeIso(iso) {
+  if (!iso) return false;
+  try {
+    return new Date(iso).toDateString() === new Date().toDateString();
+  } catch {
+    return false;
+  }
+}
+
+function Barra({ rotulo, valor, max, onClick }) {
+  const pct = max > 0 ? Math.max(4, Math.round((valor / max) * 100)) : 0;
+  return (
+    <button type="button" className="barra-row" onClick={onClick} disabled={!onClick}>
+      <span className="barra-label">{rotulo}</span>
+      <span className="barra-track" aria-hidden="true">
+        <span className="barra-fill" style={{ width: valor ? `${pct}%` : "0%" }} />
+      </span>
+      <strong>{valor}</strong>
+    </button>
+  );
+}
+
 function Home({ go, leis = [] }) {
   const total = leis.length;
-  const [stats, setStats] = useState({
-    consultas: 0,
-    bloquear: 0,
-    revisar: 0,
-    livre: 0,
-    recentes: [],
-  });
-  const porAno = [...new Set(leis.map((lei) => lei.ano))]
-    .sort((a, b) => b - a)
-    .map((ano) => ({ ano, qtd: leis.filter((lei) => lei.ano === ano).length }));
+  const [consultas, setConsultas] = useState([]);
+  const [carregou, setCarregou] = useState(false);
 
   useEffect(() => {
     apiFetch(`${API}/api/consultas`)
       .then((res) => (res.ok ? res.json() : []))
       .then((itens) => {
-        const list = Array.isArray(itens) ? itens : [];
-        setStats({
-          consultas: list.length,
-          bloquear: list.filter((item) => item.parecer === "nao_protocolar").length,
-          revisar: list.filter((item) => item.parecer === "revisar").length,
-          livre: list.filter((item) => item.parecer === "livre").length,
-          recentes: list.slice(0, 3),
-        });
+        setConsultas(Array.isArray(itens) ? itens : []);
+        setCarregou(true);
       })
-      .catch(() => {});
+      .catch(() => setCarregou(true));
   }, []);
 
+  const bloquear = consultas.filter((item) => item.parecer === "nao_protocolar").length;
+  const revisar = consultas.filter((item) => item.parecer === "revisar").length;
+  const livre = consultas.filter((item) => item.parecer === "livre").length;
+  const hoje = consultas.filter((item) => hojeIso(item.criadoEm)).length;
+  const maxParecer = Math.max(bloquear, revisar, livre, 1);
+  const porAno = [...new Set(leis.map((lei) => lei.ano))]
+    .sort((a, b) => a - b)
+    .map((ano) => ({ ano, qtd: leis.filter((lei) => lei.ano === ano).length }));
+  const maxAno = Math.max(...porAno.map((item) => item.qtd), 1);
+  const municipios = [...new Set(leis.map((lei) => lei.municipio).filter(Boolean))];
+  const leisRecentes = [...leis]
+    .sort((a, b) => String(b.criadoEm || "").localeCompare(String(a.criadoEm || "")) || b.id - a.id)
+    .slice(0, 5);
+  const recentes = consultas.slice(0, 5);
+  const dataHoje = new Date().toLocaleDateString("pt-BR", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+  });
+
   return (
-    <section className="home">
-      <p className="kicker">Cachoeira / Bahia</p>
-      <h1>Consulte antes de criar a lei.</h1>
+    <section className="home dash">
+      <p className="kicker">Painel do gabinete · Cachoeira / Bahia</p>
+      <h1>Como está o acervo hoje</h1>
       <p className="lead">
-        Cole o rascunho ou envie um PDF. O sistema diz se já existe, se é
-        parecida, ou se o acervo está livre. Menos papel, menos lei repetida.
+        {dataHoje}. Consulte antes de protocolar. Os números abrem o acervo ou o histórico.
       </p>
-      <div className="painel">
+
+      {!carregou && (
+        <p className="status" role="status">
+          Montando o painel…
+        </p>
+      )}
+
+      {total === 0 && (
+        <p className="dash-alerta" role="status">
+          O acervo está vazio. Cadastre as leis da Câmara para a consulta valer de verdade.{" "}
+          <button type="button" className="linkish" onClick={() => go("/nova")}>
+            Guardar a primeira lei
+          </button>
+        </p>
+      )}
+      {total > 0 && total < 8 && (
+        <p className="dash-alerta suave" role="status">
+          Há só {total} lei(s). “Nada parecido” só vale para o que já foi cadastrado.
+        </p>
+      )}
+
+      <div className="painel seis">
         <button type="button" onClick={() => go("/acervo")}>
           <strong>{total}</strong>
           <span>leis no acervo</span>
@@ -389,8 +438,12 @@ function Home({ go, leis = [] }) {
             go("/historico");
           }}
         >
-          <strong>{stats.consultas}</strong>
+          <strong>{consultas.length}</strong>
           <span>consultas</span>
+        </button>
+        <button type="button" onClick={() => go("/historico")}>
+          <strong>{hoje}</strong>
+          <span>consultas hoje</span>
         </button>
         <button
           type="button"
@@ -399,7 +452,7 @@ function Home({ go, leis = [] }) {
             go("/historico");
           }}
         >
-          <strong>{stats.bloquear}</strong>
+          <strong>{bloquear}</strong>
           <span>já existiam</span>
         </button>
         <button
@@ -409,74 +462,148 @@ function Home({ go, leis = [] }) {
             go("/historico");
           }}
         >
-          <strong>{stats.revisar}</strong>
+          <strong>{revisar}</strong>
           <span>para revisar</span>
         </button>
+        <button
+          type="button"
+          onClick={() => {
+            sessionStorage.setItem("leiconsulta.historicoParecer", "livre");
+            go("/historico");
+          }}
+        >
+          <strong>{livre}</strong>
+          <span>acervo livre</span>
+        </button>
       </div>
-      {porAno.length > 0 && (
-        <p className="hint">
-          Acervo por ano:{" "}
-          {porAno.map((item, i) => (
-            <span key={item.ano}>
-              {i ? " · " : ""}
-              <button
-                type="button"
-                className="linkish"
+
+      <div className="dash-grid">
+        <div className="dash-card">
+          <h2 className="sub">Pareceres</h2>
+          <p className="hint">Como as consultas terminaram.</p>
+          <Barra
+            rotulo="Já existiam"
+            valor={bloquear}
+            max={maxParecer}
+            onClick={() => {
+              sessionStorage.setItem("leiconsulta.historicoParecer", "nao_protocolar");
+              go("/historico");
+            }}
+          />
+          <Barra
+            rotulo="Revisar"
+            valor={revisar}
+            max={maxParecer}
+            onClick={() => {
+              sessionStorage.setItem("leiconsulta.historicoParecer", "revisar");
+              go("/historico");
+            }}
+          />
+          <Barra
+            rotulo="Livre"
+            valor={livre}
+            max={maxParecer}
+            onClick={() => {
+              sessionStorage.setItem("leiconsulta.historicoParecer", "livre");
+              go("/historico");
+            }}
+          />
+        </div>
+        <div className="dash-card">
+          <h2 className="sub">Acervo por ano</h2>
+          <p className="hint">
+            {municipios.length
+              ? `${municipios.length} município(s) no cadastro.`
+              : "Nenhum município ainda."}
+          </p>
+          {porAno.length ? (
+            porAno.map((item) => (
+              <Barra
+                key={item.ano}
+                rotulo={String(item.ano)}
+                valor={item.qtd}
+                max={maxAno}
                 onClick={() => {
                   sessionStorage.setItem("leiconsulta.acervoAno", String(item.ano));
                   go("/acervo");
                 }}
-              >
-                {item.ano} ({item.qtd})
-              </button>
-            </span>
-          ))}
-        </p>
-      )}
-      <ol className="steps">
-        <li>Cole o texto ou envie .txt / .pdf</li>
-        <li>Leia o parecer e os trechos em comum</li>
-        <li>Protocola só se o acervo estiver livre. Cada consulta ganha um código (LC-2026-0001).</li>
-      </ol>
-      <p className="hint">
-        Números abaixo abrem o acervo ou o histórico. Em dúvida, use{" "}
-        <button type="button" className="linkish" onClick={() => go("/ajuda")}>
-          Como usar
-        </button>
-        .
-      </p>
+              />
+            ))
+          ) : (
+            <p className="hint">Cadastre leis para ver o gráfico.</p>
+          )}
+        </div>
+      </div>
+
+      <div className="dash-grid">
+        <div className="dash-card">
+          <h2 className="sub">Leis recentes</h2>
+          {leisRecentes.length ? (
+            <div className="recentes">
+              {leisRecentes.map((lei) => (
+                <button
+                  key={lei.id}
+                  type="button"
+                  className="ghost recente"
+                  onClick={() => {
+                    sessionStorage.setItem("leiconsulta.acervoId", String(lei.id));
+                    go("/acervo");
+                  }}
+                >
+                  <strong>{lei.titulo}</strong>
+                  <span>
+                    {lei.numero ? `Lei nº ${lei.numero} · ` : ""}
+                    {lei.ano}
+                  </span>
+                </button>
+              ))}
+            </div>
+          ) : (
+            <p className="hint">Nenhuma lei no acervo.</p>
+          )}
+        </div>
+        <div className="dash-card">
+          <h2 className="sub">Últimos comprovantes</h2>
+          {recentes.length ? (
+            <div className="recentes">
+              {recentes.map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  className="ghost recente"
+                  onClick={() => {
+                    sessionStorage.setItem("leiconsulta.abrirCodigo", item.codigo || "");
+                    go("/historico");
+                  }}
+                >
+                  <strong>{item.codigo}</strong>
+                  <span>
+                    {rotuloParecer(item.parecer)} · {formatarData(item.criadoEm)}
+                  </span>
+                </button>
+              ))}
+            </div>
+          ) : (
+            <p className="hint">Ainda não há consultas.</p>
+          )}
+        </div>
+      </div>
+
       <div className="home-actions">
         <button type="button" onClick={() => go("/consultar")}>
           Consultar proposta
         </button>
-        <button type="button" className="ghost" onClick={() => go("/acervo")}>
-          Ver acervo ({total})
+        <button type="button" className="ghost" onClick={() => go("/nova")}>
+          Guardar lei
         </button>
-        <button type="button" className="ghost" onClick={() => go("/historico")}>
-          Histórico
+        <button type="button" className="ghost" onClick={() => go("/acervo")}>
+          Ver acervo
+        </button>
+        <button type="button" className="ghost" onClick={() => go("/ajuda")}>
+          Como usar
         </button>
       </div>
-      {stats.recentes.length > 0 && (
-        <div className="recentes">
-          <p className="kicker">Últimos comprovantes</p>
-          {stats.recentes.map((item) => (
-            <button
-              key={item.id}
-              type="button"
-              className="ghost recente"
-              onClick={() => {
-                sessionStorage.setItem("leiconsulta.abrirCodigo", item.codigo || "");
-                go("/historico");
-              }}
-            >
-              <strong>{item.codigo}</strong>
-              <span>
-                {rotuloParecer(item.parecer)} · {formatarData(item.criadoEm)}
-              </span>
-            </button>
-          ))}
-        </div>
-      )}
+
       <form
         className="codigo-form"
         onSubmit={(e) => {
@@ -1829,8 +1956,8 @@ function Ajuda({ go }) {
       </p>
       <h2 className="sub">Acervo</h2>
       <p className="hint">
-        Na tela inicial, clique nos números (leis, consultas, já existiam, para revisar)
-        ou em um ano para ir direto ao acervo ou ao histórico. Dá para ordenar, limpar os
+        No <strong>Painel</strong>, clique nos números (leis, consultas de hoje, já existiam, para revisar, livres)
+        ou nas barras de ano para ir ao acervo ou ao histórico. Dá para ordenar, limpar os
         filtros, copiar a ementa ou o texto, imprimir uma lei, ver se há outra parecida,
         baixar o texto e guardar uma
         <strong>cópia de segurança</strong>. Restaurar essa cópia pede confirmação.
