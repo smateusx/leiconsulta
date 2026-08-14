@@ -58,6 +58,7 @@
 | RF44 | Baixar a lista de comprovantes do histórico | Feito |
 | RF45 | Depois da consulta, guardar a proposta ou abrir a lei encontrada | Feito |
 | RF46 | Avisar na ficha se o número ou o título já existe no município | Feito |
+| RF47 | Destacar e abrir o texto da lei encontrada no acervo | Feito |
 
 ## 3. Requisitos não funcionais
 

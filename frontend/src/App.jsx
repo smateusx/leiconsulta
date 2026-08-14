@@ -170,6 +170,7 @@ export default function App() {
               go("/acervo");
             }}
             onError={setError}
+            go={go}
           />
         )}
       </main>
@@ -833,6 +834,7 @@ function Consultar({ onError, error, go }) {
           className="ghost no-print"
           onClick={() => {
             const top = (result.resultados || []).find((item) => item.nivel === "igual" || item.nivel === "parecida");
+            if (top?.id) sessionStorage.setItem("leiconsulta.acervoId", String(top.id));
             sessionStorage.setItem("leiconsulta.acervoBusca", top?.numero || top?.titulo || "");
             go("/acervo");
           }}
@@ -853,6 +855,7 @@ function Acervo({ leis, error, notice, onDelete, onSaved, go }) {
   const [erroEdicao, setErroEdicao] = useState("");
   const [copiadoId, setCopiadoId] = useState(null);
   const [ordem, setOrdem] = useState("ano-desc");
+  const [destaqueId, setDestaqueId] = useState(null);
 
   useEffect(() => {
     const anoInicial = sessionStorage.getItem("leiconsulta.acervoAno");
@@ -865,7 +868,19 @@ function Acervo({ leis, error, notice, onDelete, onSaved, go }) {
       setBusca(buscaInicial);
       sessionStorage.removeItem("leiconsulta.acervoBusca");
     }
+    const idInicial = sessionStorage.getItem("leiconsulta.acervoId");
+    if (idInicial) {
+      const id = Number(idInicial);
+      setDestaqueId(id);
+      setAberto(id);
+      sessionStorage.removeItem("leiconsulta.acervoId");
+    }
   }, []);
+
+  useEffect(() => {
+    if (!destaqueId) return;
+    document.getElementById(`lei-${destaqueId}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, [destaqueId, leis]);
   const anos = [...new Set(leis.map((lei) => lei.ano))].sort((a, b) => b - a);
   const municipios = [...new Set(leis.map((lei) => lei.municipio))].sort((a, b) =>
     a.localeCompare(b, "pt-BR")
@@ -1093,7 +1108,7 @@ function Acervo({ leis, error, notice, onDelete, onSaved, go }) {
       )}
       <div className="list">
         {filtradas.map((lei) => (
-          <article key={lei.id} className="law">
+          <article key={lei.id} id={`lei-${lei.id}`} className={`law ${destaqueId === lei.id ? "destaque" : ""}`}>
             <div>
               <strong>{lei.titulo}</strong>
               <p>
@@ -1570,7 +1585,7 @@ function aplicarBloqueio(data, setBloqueio) {
   });
 }
 
-function Nova({ leis = [], error, onSaved, onError }) {
+function Nova({ leis = [], error, onSaved, onError, go }) {
   const [titulo, setTitulo] = useState("");
   const [numero, setNumero] = useState("");
   const [municipio, setMunicipio] = useState("Cachoeira");
@@ -1738,7 +1753,7 @@ function Nova({ leis = [], error, onSaved, onError }) {
         <textarea id="texto" rows="8" value={texto} onChange={(e) => setTexto(e.target.value)} required />
         <p className="hint">{texto.trim().length} caracteres</p>
         <div className="form-actions">
-          <button type="submit" disabled={loading}>
+          <button type="submit" disabled={loading || jaTemNumero || jaTemTitulo}>
             {loading ? "Checando o acervo…" : "Guardar no acervo"}
           </button>
           <button
@@ -1778,6 +1793,20 @@ function Nova({ leis = [], error, onSaved, onError }) {
               </article>
             ))}
           </div>
+          {go && bloqueio.resultados[0]?.id && (
+            <button
+              type="button"
+              className="ghost"
+              onClick={() => {
+                const top = bloqueio.resultados[0];
+                sessionStorage.setItem("leiconsulta.acervoId", String(top.id));
+                sessionStorage.setItem("leiconsulta.acervoBusca", top.numero || top.titulo || "");
+                go("/acervo");
+              }}
+            >
+              Abrir a lei do acervo
+            </button>
+          )}
         </div>
       )}
       {error && <p className="msg error">{error}</p>}
