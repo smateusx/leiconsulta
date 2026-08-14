@@ -42,6 +42,9 @@
 | RF28 | Abrir o acervo filtrado pelo ano a partir da tela inicial | Feito |
 | RF29 | Limpar filtros do acervo e rascunho da consulta | Feito |
 | RF30 | Baixar o texto de uma lei em .txt | Feito |
+| RF31 | Copiar o parecer da consulta | Feito |
+| RF32 | Buscar no histórico por trecho do rascunho | Feito |
+| RF33 | Limpar a ficha de nova lei | Feito |
 
 ## 3. Requisitos não funcionais
 

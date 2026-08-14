@@ -504,7 +504,7 @@ function Consultar({ onError, error, go }) {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
   const [aberto, setAberto] = useState(null);
-  const [copiado, setCopiado] = useState(false);
+  const [copiado, setCopiado] = useState("");
 
   useEffect(() => {
     const rascunho = sessionStorage.getItem("leiconsulta.rascunho");
@@ -662,15 +662,33 @@ function Consultar({ onError, error, go }) {
               onClick={() => {
                 copiar(result.codigo)
                   .then(() => {
-                    setCopiado(true);
-                    setTimeout(() => setCopiado(false), 1500);
+                    setCopiado("codigo");
+                    setTimeout(() => setCopiado(""), 1500);
                   })
                   .catch(() => onError("Não foi possível copiar o código."));
               }}
             >
-              {copiado ? "Código copiado" : "Copiar código"}
+              {copiado === "codigo" ? "Código copiado" : "Copiar código"}
             </button>
           )}
+          <button
+            className="ghost small no-print"
+            type="button"
+            onClick={() => {
+              copiar(
+                [result.codigo ? `Consulta ${result.codigo}` : "", parecer.titulo, parecer.texto]
+                  .filter(Boolean)
+                  .join("\n")
+              )
+                .then(() => {
+                  setCopiado("parecer");
+                  setTimeout(() => setCopiado(""), 1500);
+                })
+                .catch(() => onError("Não foi possível copiar."));
+            }}
+          >
+            {copiado === "parecer" ? "Parecer copiado" : "Copiar parecer"}
+          </button>
           <button
             className="ghost small no-print"
             type="button"
@@ -860,7 +878,7 @@ function Acervo({ leis, error, notice, onDelete, onSaved }) {
             )
           }
         >
-          Cópia JSON
+          Cópia de segurança
         </button>
         {(busca || ano || municipio) && (
           <button
@@ -1067,7 +1085,11 @@ function Historico({ go }) {
   const filtradas = itens.filter((item) => {
     if (filtro && item.parecer !== filtro) return false;
     if (!termoCodigo) return true;
-    return String(item.codigo || "").toLowerCase().includes(termoCodigo);
+    return [item.codigo, item.resumo, item.texto, item.municipio]
+      .filter(Boolean)
+      .join(" ")
+      .toLowerCase()
+      .includes(termoCodigo);
   });
 
   return (
@@ -1076,12 +1098,15 @@ function Historico({ go }) {
       <p className="hint">
         Cada consulta ganha um código. Serve para mostrar que o acervo foi checado antes de protocolar.
       </p>
-      <label htmlFor="busca-codigo">Código</label>
+      <label htmlFor="busca-codigo">Buscar</label>
       <input
         id="busca-codigo"
         value={buscaCodigo}
-        onChange={(e) => setBuscaCodigo(e.target.value)}
-        placeholder="ex.: LC-2026-0001"
+        onChange={(e) => {
+          setBuscaCodigo(e.target.value);
+          setErro("");
+        }}
+        placeholder="código, trecho do rascunho, município..."
       />
       <label htmlFor="filtro-parecer">Parecer</label>
       <select id="filtro-parecer" value={filtro} onChange={(e) => setFiltro(e.target.value)}>
@@ -1090,6 +1115,22 @@ function Historico({ go }) {
         <option value="revisar">Para revisar</option>
         <option value="livre">Livres</option>
       </select>
+      {(buscaCodigo || filtro) && (
+        <div className="form-actions">
+          <button
+            type="button"
+            className="ghost"
+            onClick={() => {
+              setBuscaCodigo("");
+              setFiltro("");
+              setDestaque("");
+              setErro("");
+            }}
+          >
+            Limpar filtros
+          </button>
+        </div>
+      )}
       {erro && <p className="msg error">{erro}</p>}
       {!filtradas.length && !erro && (
         <p className="hint">
@@ -1372,9 +1413,25 @@ function Nova({ error, onSaved, onError }) {
         <DicaArquivo />
         <label htmlFor="texto">Texto</label>
         <textarea id="texto" rows="8" value={texto} onChange={(e) => setTexto(e.target.value)} required />
-        <button type="submit" disabled={loading}>
-          {loading ? "Checando o acervo…" : "Guardar no acervo"}
-        </button>
+        <div className="form-actions">
+          <button type="submit" disabled={loading}>
+            {loading ? "Checando o acervo…" : "Guardar no acervo"}
+          </button>
+          <button
+            type="button"
+            className="ghost"
+            onClick={() => {
+              setTitulo("");
+              setNumero("");
+              setEmenta("");
+              setTexto("");
+              setBloqueio(null);
+              onError("");
+            }}
+          >
+            Limpar ficha
+          </button>
+        </div>
       </form>
       {bloqueio && (
         <div className={`parecer ${bloqueio.parecer === "nao_protocolar" ? "nao_protocolar" : "revisar"}`}>
