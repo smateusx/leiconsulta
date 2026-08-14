@@ -120,6 +120,14 @@ button.linkish {
   margin: 1.4rem 0 1rem;
 }
 
+.proximo {
+  margin-top: 1rem;
+}
+
+.proximo button {
+  margin-top: 0.5rem;
+}
+
 .recentes {
   display: flex;
   flex-direction: column;

@@ -161,6 +161,7 @@ export default function App() {
         )}
         {page === "/nova" && (
           <Nova
+            leis={leis}
             error={error}
             notice={notice}
             onSaved={async () => {
@@ -812,16 +813,31 @@ function Consultar({ onError, error, go }) {
         </div>
       )}
       {result?.parecer === "livre" && (
+        <div className="no-print proximo">
+          <p className="hint">O acervo está livre para este texto. Guarde a lei se ela for aprovada.</p>
+          <button
+            type="button"
+            onClick={() => {
+              sessionStorage.setItem("leiconsulta.novaTexto", texto);
+              sessionStorage.setItem("leiconsulta.novaMunicipio", municipio);
+              go("/nova");
+            }}
+          >
+            Guardar esta proposta no acervo
+          </button>
+        </div>
+      )}
+      {result && (result.parecer === "nao_protocolar" || result.parecer === "revisar") && (result.resultados || []).some((item) => item.nivel === "igual" || item.nivel === "parecida") && (
         <button
           type="button"
           className="ghost no-print"
           onClick={() => {
-            sessionStorage.setItem("leiconsulta.novaTexto", texto);
-            sessionStorage.setItem("leiconsulta.novaMunicipio", municipio);
-            go("/nova");
+            const top = (result.resultados || []).find((item) => item.nivel === "igual" || item.nivel === "parecida");
+            sessionStorage.setItem("leiconsulta.acervoBusca", top?.numero || top?.titulo || "");
+            go("/acervo");
           }}
         >
-          Guardar esta proposta no acervo
+          Abrir a lei do acervo
         </button>
       )}
     </section>
@@ -843,6 +859,11 @@ function Acervo({ leis, error, notice, onDelete, onSaved, go }) {
     if (anoInicial) {
       setAno(anoInicial);
       sessionStorage.removeItem("leiconsulta.acervoAno");
+    }
+    const buscaInicial = sessionStorage.getItem("leiconsulta.acervoBusca");
+    if (buscaInicial) {
+      setBusca(buscaInicial);
+      sessionStorage.removeItem("leiconsulta.acervoBusca");
     }
   }, []);
   const anos = [...new Set(leis.map((lei) => lei.ano))].sort((a, b) => b - a);
@@ -1491,7 +1512,7 @@ function Ajuda({ go }) {
           <strong>Há leis parecidas.</strong> Leia o texto do acervo. Pode ser o mesmo assunto com outra redação.
         </li>
         <li>
-          <strong>Nada parecido.</strong> Pode seguir. Guarde a lei no acervo depois.
+          <strong>Nada parecido.</strong> Pode seguir. Use <em>Guardar esta proposta no acervo</em> se a lei for aprovada.
         </li>
       </ul>
       <h2 className="sub">Quando o sistema recusa guardar</h2>
@@ -1549,7 +1570,7 @@ function aplicarBloqueio(data, setBloqueio) {
   });
 }
 
-function Nova({ error, onSaved, onError }) {
+function Nova({ leis = [], error, onSaved, onError }) {
   const [titulo, setTitulo] = useState("");
   const [numero, setNumero] = useState("");
   const [municipio, setMunicipio] = useState("Cachoeira");
@@ -1641,6 +1662,24 @@ function Nova({ error, onSaved, onError }) {
     }
   }
 
+  const mun = municipio.trim().toLowerCase();
+  const jaTemNumero = Boolean(
+    numero.trim()
+    && leis.some(
+      (lei) =>
+        String(lei.municipio || "").toLowerCase() === mun
+        && String(lei.numero || "").toLowerCase() === numero.trim().toLowerCase()
+    )
+  );
+  const jaTemTitulo = Boolean(
+    titulo.trim()
+    && leis.some(
+      (lei) =>
+        String(lei.municipio || "").toLowerCase() === mun
+        && String(lei.titulo || "").toLowerCase() === titulo.trim().toLowerCase()
+    )
+  );
+
   return (
     <section className="card">
       <h1 className="page-title">Nova lei</h1>
@@ -1651,6 +1690,9 @@ function Nova({ error, onSaved, onError }) {
       <form onSubmit={onSubmit}>
         <label htmlFor="titulo">Título</label>
         <input id="titulo" value={titulo} onChange={(e) => setTitulo(e.target.value)} required />
+        {jaTemTitulo && (
+          <p className="msg error">Já existe uma lei com este título neste município.</p>
+        )}
         <label htmlFor="numero">Número (opcional)</label>
         <input
           id="numero"
@@ -1658,6 +1700,9 @@ function Nova({ error, onSaved, onError }) {
           onChange={(e) => setNumero(e.target.value)}
           placeholder="ex.: 1142/2018"
         />
+        {jaTemNumero && (
+          <p className="msg error">Já existe a Lei nº {numero.trim()} neste município.</p>
+        )}
         <label htmlFor="municipio">Município</label>
         <input
           id="municipio"

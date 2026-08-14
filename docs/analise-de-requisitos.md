@@ -56,6 +56,8 @@
 | RF42 | Abrir acervo ou histórico a partir dos números da tela inicial | Feito |
 | RF43 | Ir ao parecer depois da consulta e orientar acervo/histórico vazios | Feito |
 | RF44 | Baixar a lista de comprovantes do histórico | Feito |
+| RF45 | Depois da consulta, guardar a proposta ou abrir a lei encontrada | Feito |
+| RF46 | Avisar na ficha se o número ou o título já existe no município | Feito |
 
 ## 3. Requisitos não funcionais
 
