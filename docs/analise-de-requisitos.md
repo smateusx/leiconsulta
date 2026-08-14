@@ -45,6 +45,8 @@
 | RF31 | Copiar o parecer da consulta | Feito |
 | RF32 | Buscar no histórico por trecho do rascunho | Feito |
 | RF33 | Limpar a ficha de nova lei | Feito |
+| RF34 | Restaurar o acervo a partir da cópia de segurança | Feito |
+| RF35 | Copiar o texto completo da lei e o rascunho da consulta | Feito |
 
 ## 3. Requisitos não funcionais
 

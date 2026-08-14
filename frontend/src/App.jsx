@@ -880,6 +880,55 @@ function Acervo({ leis, error, notice, onDelete, onSaved }) {
         >
           Cópia de segurança
         </button>
+        <label className="ghost file-btn">
+          Restaurar cópia
+          <input
+            type="file"
+            accept="application/json,.json"
+            hidden
+            onChange={async (e) => {
+              const file = e.target.files?.[0];
+              e.target.value = "";
+              if (!file) return;
+              try {
+                const dados = JSON.parse(await file.text());
+                if (!Array.isArray(dados)) {
+                  throw new Error("Esse arquivo não é uma cópia do acervo.");
+                }
+                let guardadas = 0;
+                let ignoradas = 0;
+                for (const item of dados) {
+                  if (!item?.titulo || !item?.municipio || !item?.ementa || !item?.texto) {
+                    ignoradas += 1;
+                    continue;
+                  }
+                  const res = await fetch(`${API}/api/leis`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                      titulo: item.titulo,
+                      numero: item.numero || "",
+                      municipio: item.municipio,
+                      ano: Number(item.ano) || new Date().getFullYear(),
+                      ementa: item.ementa,
+                      texto: item.texto,
+                    }),
+                  });
+                  if (res.status === 201) guardadas += 1;
+                  else ignoradas += 1;
+                }
+                setErroEdicao("");
+                await onSaved(
+                  guardadas
+                    ? `${guardadas} lei(s) restaurada(s).${ignoradas ? ` ${ignoradas} já existiam ou foram ignoradas.` : ""}`
+                    : "Nenhuma lei nova. As da cópia já estavam no acervo ou o arquivo não tinha leis válidas."
+                );
+              } catch {
+                setErroEdicao("Não foi possível restaurar. Use o arquivo da Cópia de segurança.");
+              }
+            }}
+          />
+        </label>
         {(busca || ano || municipio) && (
           <button
             type="button"
@@ -894,6 +943,7 @@ function Acervo({ leis, error, notice, onDelete, onSaved }) {
           </button>
         )}
       </div>
+      {erroEdicao && !editando && <p className="msg error">{erroEdicao}</p>}
       {error && <p className="msg error">{error}</p>}
       {notice && <p className="msg ok">{notice}</p>}
       {leis.length > 0 && (
@@ -998,13 +1048,27 @@ function Acervo({ leis, error, notice, onDelete, onSaved }) {
                 onClick={() => {
                   copiar(lei.ementa || lei.titulo)
                     .then(() => {
-                      setCopiadoId(lei.id);
+                      setCopiadoId(`ementa-${lei.id}`);
                       setTimeout(() => setCopiadoId(null), 1500);
                     })
                     .catch(() => {});
                 }}
               >
-                {copiadoId === lei.id ? "Copiado" : "Copiar ementa"}
+                {copiadoId === `ementa-${lei.id}` ? "Copiado" : "Copiar ementa"}
+              </button>
+              <button
+                className="ghost small"
+                type="button"
+                onClick={() => {
+                  copiar(lei.texto || lei.ementa)
+                    .then(() => {
+                      setCopiadoId(`texto-${lei.id}`);
+                      setTimeout(() => setCopiadoId(null), 1500);
+                    })
+                    .catch(() => {});
+                }}
+              >
+                {copiadoId === `texto-${lei.id}` ? "Copiado" : "Copiar texto"}
               </button>
               <button
                 className="ghost small"
@@ -1171,6 +1235,20 @@ function Historico({ go }) {
                 className="ghost small"
                 type="button"
                 onClick={() => {
+                  copiar(item.texto || "")
+                    .then(() => {
+                      setCopiado(`rascunho-${item.id}`);
+                      setTimeout(() => setCopiado(""), 1500);
+                    })
+                    .catch(() => setErro("Não foi possível copiar."));
+                }}
+              >
+                {copiado === `rascunho-${item.id}` ? "Copiado" : "Copiar rascunho"}
+              </button>
+              <button
+                className="ghost small"
+                type="button"
+                onClick={() => {
                   sessionStorage.setItem("leiconsulta.rascunho", item.texto);
                   sessionStorage.setItem(
                     "leiconsulta.municipio",
@@ -1238,7 +1316,8 @@ function Ajuda({ go }) {
       <h2 className="sub">Acervo</h2>
       <p className="hint">
         Na tela inicial, clique em um ano para ver as leis daquele ano. Dá para limpar os
-        filtros, copiar a ementa e baixar o texto da lei para usar no Word.
+        filtros, copiar a ementa ou o texto, baixar a lei e guardar uma <strong>cópia de
+        segurança</strong>. Se precisar, restaure essa cópia no mesmo botão ao lado.
       </p>
       <h2 className="sub">Código da consulta</h2>
       <p className="hint">
