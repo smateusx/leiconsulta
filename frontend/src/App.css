@@ -265,6 +265,10 @@ label.file-btn {
   grid-template-columns: 1fr 9rem 7rem;
 }
 
+.filtros.quatro {
+  grid-template-columns: 1fr 8rem 6rem 9rem;
+}
+
 .edit-form {
   margin-top: 0.8rem;
 }
@@ -451,6 +455,7 @@ button.small {
 
   .filtros,
   .filtros.tres,
+  .filtros.quatro,
   .lado {
     grid-template-columns: 1fr;
   }

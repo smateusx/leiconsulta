@@ -650,6 +650,22 @@ function Consultar({ onError, error, go }) {
           >
             Limpar rascunho
           </button>
+          {texto.trim().length >= 8 && (
+            <button
+              type="button"
+              className="ghost"
+              onClick={() => {
+                copiar(texto)
+                  .then(() => {
+                    setCopiado("rascunho");
+                    setTimeout(() => setCopiado(""), 1500);
+                  })
+                  .catch(() => onError("Não foi possível copiar."));
+              }}
+            >
+              {copiado === "rascunho" ? "Rascunho copiado" : "Copiar rascunho"}
+            </button>
+          )}
         </div>
       </form>
       {error && <p className="msg error">{error}</p>}
@@ -785,6 +801,7 @@ function Acervo({ leis, error, notice, onDelete, onSaved }) {
   const [editando, setEditando] = useState(null);
   const [erroEdicao, setErroEdicao] = useState("");
   const [copiadoId, setCopiadoId] = useState(null);
+  const [ordem, setOrdem] = useState("ano-desc");
 
   useEffect(() => {
     const anoInicial = sessionStorage.getItem("leiconsulta.acervoAno");
@@ -798,16 +815,26 @@ function Acervo({ leis, error, notice, onDelete, onSaved }) {
     a.localeCompare(b, "pt-BR")
   );
   const termo = busca.trim().toLowerCase();
-  const filtradas = leis.filter((lei) => {
-    if (ano && String(lei.ano) !== ano) return false;
-    if (municipio && lei.municipio !== municipio) return false;
-    if (!termo) return true;
-    return [lei.titulo, lei.numero, lei.municipio, lei.ementa, lei.texto, String(lei.ano)]
-      .filter(Boolean)
-      .join(" ")
-      .toLowerCase()
-      .includes(termo);
-  });
+  const filtradas = leis
+    .filter((lei) => {
+      if (ano && String(lei.ano) !== ano) return false;
+      if (municipio && lei.municipio !== municipio) return false;
+      if (!termo) return true;
+      return [lei.titulo, lei.numero, lei.municipio, lei.ementa, lei.texto, String(lei.ano)]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase()
+        .includes(termo);
+    })
+    .sort((a, b) => {
+      if (ordem === "titulo") {
+        return String(a.titulo || "").localeCompare(String(b.titulo || ""), "pt-BR");
+      }
+      if (ordem === "ano-asc") {
+        return a.ano - b.ano || String(a.titulo || "").localeCompare(String(b.titulo || ""), "pt-BR");
+      }
+      return b.ano - a.ano || String(a.titulo || "").localeCompare(String(b.titulo || ""), "pt-BR");
+    });
 
   async function salvarEdicao(e) {
     e.preventDefault();
@@ -852,7 +879,7 @@ function Acervo({ leis, error, notice, onDelete, onSaved }) {
   return (
     <section className="card">
       <h1 className="page-title">Acervo</h1>
-      <div className="filtros tres">
+      <div className="filtros quatro">
         <div>
           <label htmlFor="busca">Buscar</label>
           <input
@@ -882,6 +909,14 @@ function Acervo({ leis, error, notice, onDelete, onSaved }) {
                 {item}
               </option>
             ))}
+          </select>
+        </div>
+        <div>
+          <label htmlFor="ordem-filtro">Ordem</label>
+          <select id="ordem-filtro" value={ordem} onChange={(e) => setOrdem(e.target.value)}>
+            <option value="ano-desc">Mais recente</option>
+            <option value="ano-asc">Mais antiga</option>
+            <option value="titulo">Título A–Z</option>
           </select>
         </div>
       </div>
@@ -1109,6 +1144,13 @@ function Acervo({ leis, error, notice, onDelete, onSaved }) {
               >
                 Baixar texto
               </button>
+              <button
+                className="ghost small"
+                type="button"
+                onClick={() => exportarPdf([lei])}
+              >
+                Imprimir
+              </button>
               <button className="danger" type="button" onClick={() => onDelete(lei)}>
                 Apagar
               </button>
@@ -1228,6 +1270,13 @@ function Historico({ go }) {
         </div>
       )}
       {erro && <p className="msg error">{erro}</p>}
+      {itens.length > 0 && (
+        <p className="hint">
+          {filtradas.length === itens.length
+            ? `${itens.length} consulta(s).`
+            : `Mostrando ${filtradas.length} de ${itens.length} consultas.`}
+        </p>
+      )}
       {!filtradas.length && !erro && (
         <p className="hint">
           {itens.length ? "Nenhuma consulta com esse filtro." : "Ainda não há consultas gravadas."}
@@ -1368,15 +1417,15 @@ function Ajuda({ go }) {
       </p>
       <h2 className="sub">Acervo</h2>
       <p className="hint">
-        Na tela inicial, clique em um ano para ver as leis daquele ano. Dá para limpar os
-        filtros, copiar a ementa ou o texto, baixar a lei e guardar uma <strong>cópia de
-        segurança</strong>. Se precisar, restaure essa cópia no mesmo botão ao lado.
+        Na tela inicial, clique em um ano para ver as leis daquele ano. Dá para ordenar,
+        limpar os filtros, copiar a ementa ou o texto, imprimir uma lei, baixar o texto e
+        guardar uma <strong>cópia de segurança</strong>. Restaurar essa cópia pede confirmação.
       </p>
       <h2 className="sub">Código da consulta</h2>
       <p className="hint">
         Cada consulta ganha um código (ex.: LC-2026-0001). Copie, imprima, baixe o parecer
-        ou abra o comprovante na tela inicial. Isso mostra que o acervo foi checado. Não é
-        parecer jurídico da Câmara.
+        ou abra o comprovante na tela inicial. No histórico dá para apagar uma consulta
+        se o rascunho não deve ficar guardado. Não é parecer jurídico da Câmara.
       </p>
       <h2 className="sub">Arquivo</h2>
       <p className="hint">
@@ -1436,6 +1485,17 @@ function Nova({ error, onSaved, onError }) {
       sessionStorage.removeItem("leiconsulta.novaMunicipio");
     }
   }, []);
+
+  useEffect(() => {
+    const sujo = titulo.trim() || ementa.trim() || texto.trim();
+    function avisar(e) {
+      if (!sujo) return;
+      e.preventDefault();
+      e.returnValue = "";
+    }
+    window.addEventListener("beforeunload", avisar);
+    return () => window.removeEventListener("beforeunload", avisar);
+  }, [titulo, ementa, texto]);
 
   async function onSubmit(e) {
     e.preventDefault();

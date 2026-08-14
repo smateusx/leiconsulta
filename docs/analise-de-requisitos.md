@@ -50,6 +50,9 @@
 | RF36 | Apagar consulta do histórico | Feito |
 | RF37 | Ver os últimos comprovantes na tela inicial | Feito |
 | RF38 | Confirmar antes de restaurar a cópia de segurança | Feito |
+| RF39 | Ordenar o acervo por ano ou título | Feito |
+| RF40 | Imprimir uma lei do acervo | Feito |
+| RF41 | Copiar o rascunho na tela de consultar | Feito |
 
 ## 3. Requisitos não funcionais
 
